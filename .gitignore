@@ -1,0 +1,54 @@
+# MATLAB specific
+*.asv
+*.m~
+*.mex*
+*.mat
+slprj/
+sccprj/
+codegen/
+*.slxc
+*.mlx
+*.fig
+*.mlapp
+*.mldatx
+
+# Build artifacts
+coverage_report/
+*.o
+*.obj
+*.lib
+*.dll
+*.so
+*.dylib
+build/
+*.mexa64
+*.mexmaci64
+*.mexw64
+
+# Test artifacts
+*.gcno
+*.gcda
+*.gcov
+lcov.info
+
+# Dependencies
+numcodecs/
+zarr-python/
+
+# IDE and editor files
+*.swp
+*.swo
+.idea/
+*.iml
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Temporary and backup files
+*~
+*.bak
+*.tmp
