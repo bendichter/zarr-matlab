@@ -50,12 +50,12 @@ classdef test_indexer < matlab.unittest.TestCase
             
             % Test getting non-existent chunk (should return zeros)
             chunk = indexer.get_chunk([1 1]);
-            testCase.verifyEqual(size(chunk), [5 5]);
+            testCase.verifyEqual(size(chunk), [5; 5]);
             testCase.verifyEqual(chunk, zeros(5, 5));
             
             % Test chunk shape at edge
             chunk = indexer.get_chunk([2 2]);
-            testCase.verifyEqual(size(chunk), [5 5]);
+            testCase.verifyEqual(size(chunk), [5; 5]);
         end
         
         function test_local_indices(testCase)

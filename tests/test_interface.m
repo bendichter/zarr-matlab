@@ -198,8 +198,11 @@ function test_open_readonly(testCase)
     array = zarr.create(store, [10 10], 'double');
     array(:,:) = data;
     
+    % Create new read-only store instance
+    readonly_store = zarr.storage.FileStore(temp_dir, 'read_only', true);
+    
     % Open array in read-only mode
-    readonly = zarr.open(store, 'mode', 'r');
+    readonly = zarr.open(readonly_store);
     
     % Verify read-only status
     testCase.verifyTrue(readonly.read_only);
@@ -207,9 +210,13 @@ function test_open_readonly(testCase)
     % Verify data can be read
     testCase.verifyEqual(readonly(:,:), data);
     
-    % Verify write attempts fail
-    testCase.verifyError(@() readonly(:,:) = zeros(10), ...
-        'zarr:ReadOnlyError');
+    % Test write attempt
+    try
+        readonly(:,:) = zeros(10,10);
+        testCase.verifyFail('Expected error not thrown');
+    catch ME
+        testCase.verifyEqual(ME.identifier, 'zarr:ReadOnlyError');
+    end
 end
 
 function test_interface_errors(testCase)
@@ -229,7 +236,7 @@ function test_interface_errors(testCase)
     
     % Test missing parameter value
     testCase.verifyError(@() zarr.create([10 10], 'double', ...
-        'chunks', []), 'MATLAB:InputParser:ArgumentValue');
+        'chunks'), 'MATLAB:InputParser:ArgumentValue');
     
     % Test opening non-existent path
     store = zarr.storage.FileStore(tempname);

@@ -42,8 +42,8 @@ classdef ArrayMetadata < handle
             % Write v2 format metadata
             metadata = struct();
             metadata.zarr_format = 2;
-            metadata.shape = obj.shape(:);  % Column vector for v2
-            metadata.chunks = obj.chunks(:);  % Column vector for v2
+            metadata.shape = obj.shape(:)';  % Row vector for v2
+            metadata.chunks = obj.chunks(:)';  % Row vector for v2
             metadata.dtype = obj.get_dtype_str();
             config = obj.get_compressor_config();
             if ~isempty(config)
@@ -61,14 +61,16 @@ classdef ArrayMetadata < handle
         
         function write_v3(obj, store, path)
             % Write v3 format metadata
-            metadata = struct();
-            metadata.zarr_format = 3;
-            metadata.node_type = 'array';
-            metadata.shape = obj.shape(:);  % Column vector for v3
-            metadata.data_type = obj.get_dtype_str();
-            metadata.chunk_grid = struct(...
-                'name', 'regular', ...
-                'configuration', struct('chunk_shape', obj.chunks(:)));  % Column vector for v3
+            metadata = struct(...
+                'zarr_format', 3, ...
+                'node_type', 'array', ...
+                'shape', obj.shape(:)', ...  % Row vector for v3
+                'data_type', obj.get_dtype_str(), ...
+                'chunk_grid', struct(...
+                    'name', 'regular', ...
+                    'configuration', struct('chunk_shape', obj.chunks(:)')), ...  % Row vector for v3
+                'attributes', struct(), ...  % Required field for v3
+                'extensions', struct());  % Required field for v3
             
             % Create codec list
             codecs = {};

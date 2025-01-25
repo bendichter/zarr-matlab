@@ -132,10 +132,12 @@ classdef Group < handle
             % Initialize group with v3 format
             if ~obj.store.contains([obj.path '/zarr.json'])
                 % Create zarr.json metadata file
-                metadata = struct();
-                metadata.zarr_format = 3;
-                metadata.node_type = 'group';
-                metadata.attributes = obj.attrs_store;
+                metadata = struct(...
+                    'zarr_format', 3, ...
+                    'node_type', 'group', ...
+                    'attributes', obj.attrs_store, ...
+                    'codecs', {{}}, ...  % Empty codecs list for v3 groups
+                    'data_type', '<f8');  % Required field for v3 metadata
                 
                 % Store metadata
                 obj.store.set([obj.path '/zarr.json'], uint8(jsonencode(metadata)));

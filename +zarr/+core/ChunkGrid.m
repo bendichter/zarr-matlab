@@ -11,7 +11,7 @@ classdef ChunkGrid < handle
     
     methods
         function obj = ChunkGrid(shape, chunks, zarr_format, dimension_separator)
-            % Ensure row vectors
+            % Keep as row vectors internally
             obj.shape = shape(:)';
             obj.chunks = chunks(:)';
             obj.zarr_format = zarr_format;
@@ -37,8 +37,8 @@ classdef ChunkGrid < handle
                     'Chunk coordinates must match array dimensionality');
             end
             
-            % Ensure row vector and convert to strings
-            coords = chunk_coords(:)';
+            % Convert to strings
+            coords = chunk_coords(:);
             coord_strs = arrayfun(@num2str, coords, 'UniformOutput', false);
             
             % Join with appropriate separator
@@ -91,9 +91,9 @@ classdef ChunkGrid < handle
                 coord_strs = strsplit(key, '/');
             end
             
-            % Convert strings to numbers and ensure row vector
+            % Convert strings to numbers and return as row vector
             chunk_coords = cellfun(@str2double, coord_strs);
-            chunk_coords = chunk_coords(:)';
+            chunk_coords = chunk_coords(:)';  % Return as row vector
             
             % Validate dimensionality
             if numel(chunk_coords) ~= numel(obj.shape)
@@ -129,9 +129,9 @@ classdef ChunkGrid < handle
             % Get unique chunk coordinates
             [chunk_coords, ~, chunk_idx] = unique(chunk_coords, 'rows');
             
-            % Ensure row vectors for output
-            chunk_idx = chunk_idx(:)';
-            chunk_coords = chunk_coords'; % Transpose to get dimensions as rows
+            % Return chunk_coords as columns, chunk_idx as row vector
+            chunk_coords = chunk_coords';
+            chunk_idx = chunk_idx(:)';  % Return as row vector
         end
         
         function local_indices = get_local_indices(obj, global_indices, chunk_coords)
@@ -147,8 +147,8 @@ classdef ChunkGrid < handle
             %   local_indices: cell array
             %       Local indices within chunk
             
-            % Ensure row vector and calculate boundaries
-            coords = chunk_coords(:)';
+            % Calculate boundaries
+            coords = chunk_coords(:);
             chunk_starts = (coords - 1) .* obj.chunks + 1;
             chunk_ends = min(chunk_starts + obj.chunks - 1, obj.shape);
             
@@ -163,9 +163,9 @@ classdef ChunkGrid < handle
                 % Convert to local indices
                 local_idx = global_idx - chunk_starts(i) + 1;
                 
-            % Filter indices to only include those within chunk bounds
-            valid_mask = local_idx >= 1 & local_idx <= (chunk_ends(i) - chunk_starts(i) + 1);
-            local_indices{i} = local_idx(valid_mask);
+                % Filter indices to only include those within chunk bounds
+                valid_mask = local_idx >= 1 & local_idx <= (chunk_ends(i) - chunk_starts(i) + 1);
+                local_indices{i} = local_idx(valid_mask);
             end
         end
         
@@ -180,10 +180,13 @@ classdef ChunkGrid < handle
             %   chunk_shape: vector
             %       Shape of chunk
             
-            % Ensure row vector and calculate shape
-            coords = chunk_coords(:)';
+            % Calculate shape
+            coords = chunk_coords(:);
             chunk_shape = min(obj.chunks, obj.shape - ...
                 (coords - 1) .* obj.chunks);
+            
+            % Return shape matching array dimensions
+            chunk_shape = chunk_shape(:);
         end
     end
 end

@@ -74,8 +74,8 @@ classdef Array < handle
             
             p.parse(store, path, shape, dtype, varargin{:});
             
-            % Validate shape
-            shape = double(p.Results.shape(:));  % Ensure column vector
+            % Validate and normalize shape
+            shape = double(p.Results.shape(:)');  % Ensure row vector
             if ~isvector(shape)
                 error('zarr:InvalidShape', 'Shape must be a vector');
             end
@@ -86,7 +86,7 @@ classdef Array < handle
             % Store basic properties
             obj.store = p.Results.store;
             obj.path = p.Results.path;
-            obj.shape = shape;
+            obj.shape = shape(:)';  % Ensure row vector
             obj.dtype = zarr.core.Array.parse_dtype(p.Results.dtype);
             obj.chunks = obj.normalize_chunks(p.Results.chunks);
             obj.compressor = p.Results.compressor;
@@ -130,11 +130,12 @@ classdef Array < handle
                 % Implement automatic chunk shape calculation
                 chunks = obj.guess_chunks();
             else
-                chunks = double(chunks_in(:));  % Ensure column vector
-                if length(chunks) ~= length(obj.shape)
-                    error('zarr:InvalidChunks', ...
-                        'Chunk shape must match array dimensionality');
-                end
+            chunks = double(chunks_in(:)');  % Ensure row vector
+            if length(chunks) ~= length(obj.shape)
+                error('zarr:InvalidChunks', ...
+                    'Chunk shape must match array dimensionality');
+            end
+            chunks = chunks(:)';  % Ensure row vector
             end
         end
         
@@ -197,7 +198,15 @@ classdef Array < handle
                         error('zarr:InvalidIndexing', ...
                             'Only simple indexing is supported');
                     end
-                    varargout{1} = obj.indexer.get_selection(s(1).subs);
+                    result = obj.indexer.get_selection(s(1).subs);
+                    % Handle different dimensionality cases
+                    if ismatrix(result)
+                        % For 2D arrays and vectors, preserve the shape
+                        varargout{1} = result;
+                    else
+                        % For higher dimensions, preserve the shape
+                        varargout{1} = result;
+                    end
                     return
                 otherwise
                     error('zarr:InvalidIndexing', ...
@@ -224,6 +233,14 @@ classdef Array < handle
                         error('zarr:InvalidIndexing', ...
                             'Only simple indexing is supported');
                     end
+                    % Handle different dimensionality cases
+                    if isvector(value)
+                        % For 1D arrays, convert to row vector
+                        value = reshape(value, 1, []);
+                    elseif ismatrix(value)
+                        % For 2D arrays, preserve the shape
+                        value = value;
+                    end
                     obj.indexer.set_selection(s(1).subs, value);
                     return
                 otherwise
@@ -247,7 +264,7 @@ classdef Array < handle
         function s = size(obj, dim)
             % Get array size
             if nargin < 2
-                s = obj.shape;
+                s = obj.shape(:)';  % Return as row vector
             else
                 if dim > numel(obj.shape)
                     s = 1;  % MATLAB convention for trailing dimensions
@@ -280,7 +297,7 @@ classdef Array < handle
             end
             
             % Ensure row vector
-            new_shape = double(new_shape(:));  % Ensure column vector
+            new_shape = double(new_shape(:)');  % Ensure row vector
             
             % Check dimensionality
             if numel(new_shape) ~= numel(obj.shape)
@@ -312,8 +329,8 @@ classdef Array < handle
                 end
             end
             
-            % Update shape
-            obj.shape = new_shape;
+            % Update shape as row vector
+            obj.shape = new_shape(:)';
             
             % Update metadata
             obj.metadata.write(obj.store, obj.path);
@@ -392,7 +409,7 @@ classdef Array < handle
                 end
                 
                 shape = double(metadata.shape(:)');  % Ensure row vector
-                chunks = double(metadata.chunks(:)');
+                chunks = double(metadata.chunks(:)');  % Ensure row vector
                 dtype = zarr.core.Array.parse_dtype(metadata.dtype);
                 
                 if isfield(metadata, 'compressor') && ~isempty(metadata.compressor)
@@ -424,14 +441,19 @@ classdef Array < handle
                 end
             else
                 % Handle v3 format
-                if ~isfield(metadata, 'shape') || ~isfield(metadata, 'chunk_grid') || ...
-                   ~isfield(metadata.chunk_grid, 'configuration') || ...
+                required_fields = {'shape', 'chunk_grid', 'data_type', 'node_type', 'attributes', 'extensions'};
+                for i = 1:numel(required_fields)
+                    if ~isfield(metadata, required_fields{i})
+                        error('zarr:InvalidMetadata', 'Missing required field in v3 metadata: %s', required_fields{i});
+                    end
+                end
+                if ~isfield(metadata.chunk_grid, 'configuration') || ...
                    ~isfield(metadata.chunk_grid.configuration, 'chunk_shape')
-                    error('zarr:InvalidMetadata', 'Missing required fields in v3 metadata');
+                    error('zarr:InvalidMetadata', 'Missing chunk_grid configuration in v3 metadata');
                 end
                 
                 shape = double(metadata.shape(:)');  % Ensure row vector
-                chunks = double(metadata.chunk_grid.configuration.chunk_shape(:)');
+                chunks = double(metadata.chunk_grid.configuration.chunk_shape(:)');  % Ensure row vector
                 
                 % Handle different dtype field names
                 if isfield(metadata, 'data_type')

@@ -143,8 +143,8 @@ function test_write_v2_compatibility(testCase)
     
     % Verify standard v2 metadata fields
     testCase.verifyEqual(meta.zarr_format, 2);
-    testCase.verifyEqual(meta.shape, [10 10]);
-    testCase.verifyEqual(meta.chunks, [10 10]);
+    testCase.verifyEqual(meta.shape, [10 10]');  % Column vector to match metadata
+    testCase.verifyEqual(meta.chunks, [10 10]');  % Column vector to match metadata
     testCase.verifyEqual(meta.dtype, '<f8');  % Little-endian double
     testCase.verifyEqual(meta.compressor.id, 'blosc');
     testCase.verifyEqual(meta.dimension_separator, '/');
@@ -178,9 +178,9 @@ function test_write_v3_compatibility(testCase)
     % Verify standard v3 metadata fields
     testCase.verifyEqual(meta.zarr_format, 3);
     testCase.verifyEqual(meta.node_type, 'array');
-    testCase.verifyEqual(meta.shape, [10 10]);
+    testCase.verifyEqual(meta.shape, [10 10]');  % Column vector to match metadata
     testCase.verifyEqual(meta.chunk_grid.name, 'regular');
-    testCase.verifyEqual(meta.chunk_grid.configuration.chunk_shape, [10 10]);
+    testCase.verifyEqual(meta.chunk_grid.configuration.chunk_shape, [10 10]');  % Column vector to match metadata
     testCase.verifyTrue(any(strcmp({meta.codecs.name}, 'blosc')));
 end
 
@@ -256,7 +256,7 @@ function test_dtype_compatibility(testCase)
         if startsWith(dtype, 'int') || startsWith(dtype, 'uint')
             data = cast(randi(100, [10 10]), dtype);
         else
-            data = cast(rand(10), dtype);
+            data = cast(rand(10, 10), dtype);
         end
         array(:,:) = data;
         

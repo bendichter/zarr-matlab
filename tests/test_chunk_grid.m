@@ -61,12 +61,12 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             % Test regular chunk
             coords = [1 1];
             chunk_shape = grid.get_chunk_shape(coords);
-            testCase.verifyEqual(chunk_shape, [5 5]);
+            testCase.verifyEqual(chunk_shape, [5; 5]);
             
             % Test edge chunk
             coords = [2 2];
             chunk_shape = grid.get_chunk_shape(coords);
-            testCase.verifyEqual(chunk_shape, [5 5]);
+            testCase.verifyEqual(chunk_shape, [5; 5]);
             
             % Test with non-uniform chunks
             shape = [12 12];
@@ -75,7 +75,7 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             
             coords = [3 3];
             chunk_shape = grid.get_chunk_shape(coords);
-            testCase.verifyEqual(chunk_shape, [2 2]);
+            testCase.verifyEqual(chunk_shape, [2; 2]);
         end
         
         function test_coords_to_key(testCase)

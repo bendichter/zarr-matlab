@@ -40,7 +40,7 @@ classdef Indexer < handle
             % Calculate output size
             out_shape = cellfun(@numel, indices);
             
-            % Initialize output array
+            % Initialize output array with correct shape
             result = zeros(out_shape, obj.dtype);
             
             % Convert indices to n-dimensional grid
@@ -53,7 +53,6 @@ classdef Indexer < handle
             % Create linear indices for result array
             result_size = cellfun(@numel, indices);
             result_linear = 1:prod(result_size);
-            result = zeros(result_size, obj.dtype);
             
             % Load each required chunk
             for i = 1:size(chunk_coords, 2)
@@ -93,7 +92,7 @@ classdef Indexer < handle
             
             % Validate value size
             expected_size = cellfun(@numel, indices);
-            if ~isequal(size(value), expected_size)
+            if ~isequal(size(value), expected_size(:)')  % Compare with row vector
                 error('zarr:InvalidValue', ...
                     'Value size does not match indexed region');
             end
@@ -154,14 +153,14 @@ classdef Indexer < handle
             if ~obj.store.contains(key)
                 % Return fill value if chunk doesn't exist
                 chunk_shape = obj.grid.get_chunk_shape(chunk_coords);
-                chunk = zeros(chunk_shape(:)', obj.dtype);
+                chunk = zeros(chunk_shape(:)', obj.dtype);  % Row vector for chunk shape
                 return
             end
             
             % Read and decode data
             bytes = obj.store.get(key);
             chunk_shape = obj.grid.get_chunk_shape(chunk_coords);
-            chunk = obj.pipeline.decode(bytes, obj.dtype, chunk_shape);
+            chunk = obj.pipeline.decode(bytes, obj.dtype, chunk_shape(:)');  % Row vector for chunk shape
         end
         
         function set_chunk(obj, chunk_coords, chunk)
@@ -175,7 +174,7 @@ classdef Indexer < handle
             
             % Validate chunk shape
             expected_shape = obj.grid.get_chunk_shape(chunk_coords);
-            if ~isequal(size(chunk), expected_shape)
+            if ~isequal(size(chunk), expected_shape(:)')  % Compare with row vector
                 error('zarr:InvalidChunkShape', ...
                     'Chunk shape does not match expected shape');
             end

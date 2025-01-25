@@ -4,8 +4,11 @@ classdef FileStore < zarr.core.Store
     %   Each chunk and metadata file is stored as a separate file.
     
     properties (Access = private)
-        root        % Root directory path
         read_only   % Whether store is read-only
+    end
+    
+    properties (SetAccess = private)
+        root        % Root directory path
         normalize   % Whether to normalize path separators
     end
     

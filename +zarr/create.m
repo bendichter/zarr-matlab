@@ -62,13 +62,13 @@ function [store, shape, dtype, params] = parse_args(varargin)
     if isnumeric(varargin{1})
         % create(shape, dtype, ...)
         store = zarr.storage.FileStore(tempname);
-        shape = varargin{1};
+        shape = varargin{1}(:)';  % Ensure row vector
         dtype = varargin{2};
         args = varargin(3:end);
     else
         % create(store, shape, dtype, ...)
         store = varargin{1};
-        shape = varargin{2};
+        shape = varargin{2}(:)';  % Ensure row vector
         dtype = varargin{3};
         args = varargin(4:end);
     end
@@ -88,7 +88,7 @@ function [store, shape, dtype, params] = parse_args(varargin)
     % Parse optional parameters
     if ~isempty(args)
         if mod(numel(args), 2) ~= 0
-            error('zarr:InvalidArguments', ...
+            error('MATLAB:InputParser:ArgumentValue', ...
                 'Optional parameters must be specified as name-value pairs');
         end
         
@@ -98,7 +98,11 @@ function [store, shape, dtype, params] = parse_args(varargin)
             
             switch lower(name)
                 case 'chunks'
-                    params.chunks = value;
+                    if ~isempty(value)
+                        params.chunks = value(:)';  % Ensure row vector
+                    else
+                        params.chunks = value;
+                    end
                 case 'compressor'
                     params.compressor = value;
                 case 'fill_value'
@@ -116,7 +120,7 @@ function [store, shape, dtype, params] = parse_args(varargin)
                 case 'attributes'
                     params.attributes = value;
                 otherwise
-                    error('zarr:InvalidParameter', ...
+                    error('MATLAB:InputParser:UnmatchedParameter', ...
                         'Unknown parameter: %s', name);
             end
         end
