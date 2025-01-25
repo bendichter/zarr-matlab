@@ -149,18 +149,20 @@ classdef Indexer < handle
             % Get store key for chunk
             key = obj.grid.coords_to_key(chunk_coords, obj.path);
             
+            % Get chunk shape
+            chunk_shape = obj.grid.get_chunk_shape(chunk_coords);
+            chunk_shape = chunk_shape(:)';  % Ensure row vector for array creation
+            
             % Check if chunk exists
             if ~obj.store.contains(key)
                 % Return fill value if chunk doesn't exist
-                chunk_shape = obj.grid.get_chunk_shape(chunk_coords);
-                chunk = zeros(chunk_shape(:)', obj.dtype);  % Row vector for chunk shape
+                chunk = zeros(chunk_shape, obj.dtype);
                 return
             end
             
             % Read and decode data
             bytes = obj.store.get(key);
-            chunk_shape = obj.grid.get_chunk_shape(chunk_coords);
-            chunk = obj.pipeline.decode(bytes, obj.dtype, chunk_shape(:)');  % Row vector for chunk shape
+            chunk = obj.pipeline.decode(bytes, obj.dtype, chunk_shape);
         end
         
         function set_chunk(obj, chunk_coords, chunk)
@@ -172,9 +174,12 @@ classdef Indexer < handle
             %   chunk: array
             %       Chunk data
             
-            % Validate chunk shape
+            % Get expected chunk shape
             expected_shape = obj.grid.get_chunk_shape(chunk_coords);
-            if ~isequal(size(chunk), expected_shape(:)')  % Compare with row vector
+            expected_shape = expected_shape(:)';  % Ensure row vector for comparison
+            
+            % Validate chunk shape
+            if ~isequal(size(chunk), expected_shape)
                 error('zarr:InvalidChunkShape', ...
                     'Chunk shape does not match expected shape');
             end

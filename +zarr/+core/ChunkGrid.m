@@ -185,8 +185,8 @@ classdef ChunkGrid < handle
             chunk_shape = min(obj.chunks, obj.shape - ...
                 (coords - 1) .* obj.chunks);
             
-            % Return shape matching array dimensions
-            chunk_shape = chunk_shape(:);
+            % Return as row vector for MATLAB compatibility
+            chunk_shape = chunk_shape(:)';
         end
     end
 end

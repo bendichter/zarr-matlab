@@ -109,8 +109,15 @@ classdef Array < handle
             obj.indexer = zarr.core.Indexer(obj.shape, obj.chunks, obj.dtype, ...
                 obj.grid, obj.pipeline, obj.store, obj.path);
             
-            % Initialize array
-            obj.metadata.write(obj.store, obj.path);
+            % Check if store is read-only
+            if isa(store, 'zarr.storage.FileStore') && store.isreadonly()
+                obj.read_only = true;
+            end
+            
+            % Initialize array (only write metadata if not read-only)
+            if ~obj.read_only
+                obj.metadata.write(obj.store, obj.path);
+            end
             
             % Initialize attributes
             obj.attrs = zarr.core.Attributes(store, path, obj.zarr_format);
@@ -199,14 +206,8 @@ classdef Array < handle
                             'Only simple indexing is supported');
                     end
                     result = obj.indexer.get_selection(s(1).subs);
-                    % Handle different dimensionality cases
-                    if ismatrix(result)
-                        % For 2D arrays and vectors, preserve the shape
-                        varargout{1} = result;
-                    else
-                        % For higher dimensions, preserve the shape
-                        varargout{1} = result;
-                    end
+                    % Return result with preserved shape
+                    varargout{1} = result;
                     return
                 otherwise
                     error('zarr:InvalidIndexing', ...
@@ -233,13 +234,9 @@ classdef Array < handle
                         error('zarr:InvalidIndexing', ...
                             'Only simple indexing is supported');
                     end
-                    % Handle different dimensionality cases
+                    % Ensure row vector for 1D arrays
                     if isvector(value)
-                        % For 1D arrays, convert to row vector
                         value = reshape(value, 1, []);
-                    elseif ismatrix(value)
-                        % For 2D arrays, preserve the shape
-                        value = value;
                     end
                     obj.indexer.set_selection(s(1).subs, value);
                     return
@@ -499,6 +496,11 @@ classdef Array < handle
                 'filters', filters, ...
                 'dimension_separator', dimension_separator, ...
                 'zarr_format', zarr_format);
+            
+            % Set read-only flag if store is read-only
+            if isa(store, 'zarr.storage.FileStore') && store.isreadonly()
+                obj.read_only = true;
+            end
         end
     end
 end
