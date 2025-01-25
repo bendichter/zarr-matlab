@@ -180,12 +180,13 @@ classdef ChunkGrid < handle
             %   chunk_shape: vector
             %       Shape of chunk
             
-            % Calculate shape
-            coords = chunk_coords(:);
-            chunk_shape = min(obj.chunks, obj.shape - ...
-                (coords - 1) .* obj.chunks);
+            % Calculate shape for each dimension
+            coords = chunk_coords(:)';  % Convert to row vector
+            chunk_starts = (coords - 1) .* obj.chunks;
+            chunk_ends = min(chunk_starts + obj.chunks, obj.shape);
+            chunk_shape = chunk_ends - chunk_starts;
             
-            % Return as row vector for MATLAB compatibility
+            % Return as row vector
             chunk_shape = chunk_shape(:)';
         end
     end
