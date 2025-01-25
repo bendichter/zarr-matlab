@@ -3,7 +3,7 @@ classdef ZstdCodec < zarr.codecs.Codec
     %   Implements Zstandard compression using the zstd library
     
     properties
-        level = 3  % Compression level (-131072 to 22, default: 3)
+        level = 0  % Compression level (-131072 to 22, default: 0)
         checksum = false  % Whether to include checksum in compressed data
     end
     
@@ -14,12 +14,12 @@ classdef ZstdCodec < zarr.codecs.Codec
             % Parameters:
             %   Name-Value Pairs:
             %     'level': numeric
-            %         Compression level (-131072 to 22, default: 3)
+            %         Compression level (-131072 to 22, default: 0)
             %     'checksum': logical
             %         Whether to include checksum (default: false)
             
             p = inputParser;
-            addParameter(p, 'level', 3, @isnumeric);
+            addParameter(p, 'level', 0, @isnumeric);
             addParameter(p, 'checksum', false, @islogical);
             parse(p, varargin{:});
             
@@ -136,7 +136,7 @@ classdef ZstdCodec < zarr.codecs.Codec
                     'Configuration is not for zstd codec');
             end
             
-            level = 3;  % default
+            level = 0;  % default
             if isfield(config, 'level')
                 level = config.level;
             end
