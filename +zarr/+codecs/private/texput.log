@@ -1,0 +1,38 @@
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=mex 2018.4.16)  24 JAN 2025 21:37
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**"COMPFLAGS=-O3 -I../../../numcodecs/c-blosc/internal-complibs/zstd-1.5.6 -DXX
+H_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=0" zstdmex.c ../../../numcodecs/c-blosc
+/internal-complibs/zstd-1.5.6/common/debug.c ../../../numcodecs/c-blosc/interna
+l-complibs/zstd-1.5.6/common/entropy_common.c ../../../numcodecs/c-blosc/intern
+al-complibs/zstd-1.5.6/common/error_private.c ../../../numcodecs/c-blosc/intern
+al-complibs/zstd-1.5.6/common/fse_decompress.c ../../../numcodecs/c-blosc/inter
+nal-complibs/zstd-1.5.6/common/pool.c ../../../numcodecs/c-blosc/internal-compl
+ibs/zstd-1.5.6/common/threading.c ../../../numcodecs/c-blosc/internal-complibs/
+zstd-1.5.6/common/xxhash.c ../../../numcodecs/c-blosc/internal-complibs/zstd-1.
+5.6/common/zstd_common.c ../../../numcodecs/c-blosc/internal-complibs/zstd-1.5.
+6/compress/fse_compress.c ../../../numcodecs/c-blosc/internal-complibs/zstd-1.5
+.6/compress/hist.c ../../../numcodecs/c-blosc/internal-complibs/zstd-1.5.6/comp
+ress/huf_compress.c ../../../numcodecs/c-blosc/internal-complibs/zstd-1.5.6/com
+press/zstd_compress.c ../../../numcodecs/c-blosc/internal-complibs/zstd-1.5.6/c
+ompress/zstd_compress_literals.c ../../../numcodecs/c-blosc/internal-complibs/z
+std-1.5.6/compress/zstd_compress_sequences.c ../../../numcodecs/c-blosc/interna
+l-complibs/zstd-1.5.6/compress/zstd_compress_superblock.c ../../../numcodecs/c-
+blosc/internal-complibs/zstd-1.5.6/compress/zstd_double_fast.c ../../../numcode
+cs/c-blosc/internal-complibs/zstd-1.5.6/compress/zstd_fast.c ../../../numcodecs
+/c-blosc/internal-complibs/zstd-1.5.6/compress/zstd_lazy.c ../../../numcodecs/c
+-blosc/internal-complibs/zstd-1.5.6/compress/zstd_ldm.c ../../../numcodecs/c-bl
+osc/internal-complibs/zstd-1.5.6/compress/zstd_opt.c ../../../numcodecs/c-blosc
+/internal-complibs/zstd-1.5.6/decompress/huf_decompress.c ../../../numcodecs/c-
+blosc/internal-complibs/zstd-1.5.6/decompress/zstd_ddict.c ../../../numcodecs/c
+-blosc/internal-complibs/zstd-1.5.6/decompress/zstd_decompress.c ../../../numco
+decs/c-blosc/internal-complibs/zstd-1.5.6/decompress/zstd_decompress_block.c -o
+utput zstdmex
+
+! Emergency stop.
+<*> ...H_NAMESPACE=ZSTD_ -DZSTD_LEGACY_SUPPORT=0" 
+                                                  zstdmex.c ../../../numcode...
+End of file on the terminal!
+
+No pages of output.

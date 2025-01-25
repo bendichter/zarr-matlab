@@ -38,29 +38,41 @@ classdef GzipCodec < zarr.codecs.Codec
                 error('zarr:InvalidInput', 'Input must be uint8');
             end
             
-            % Write data to temporary file
-            temp_in = tempname;
-            temp_gz = [temp_in '.gz'];
-            cleanup = onCleanup(@() delete_if_exists({temp_in, temp_gz}));
-            
-            % Write data to temp file
-            fid = fopen(temp_in, 'wb');
-            if fid == -1
-                error('zarr:FileError', 'Failed to open temporary file for writing');
+            % Handle empty array
+            if isempty(data)
+                encoded = zeros(0, 0, 'uint8');
+                return;
             end
-            fwrite(fid, data, 'uint8');
-            fclose(fid);
             
-            % Compress using gzip
-            gzip(temp_in);
-            
-            % Read compressed data
-            fid = fopen(temp_gz, 'rb');
-            if fid == -1
-                error('zarr:FileError', 'Failed to open compressed file for reading');
+            % Use MATLAB's built-in gzip
+            try
+                % Create temporary files
+                temp_in = [tempname '.bin'];
+                temp_gz = [temp_in '.gz'];
+                cleanup = onCleanup(@() delete_if_exists({temp_in, temp_gz}));
+                
+                % Write data to temp file
+                fid = fopen(temp_in, 'wb');
+                if fid == -1
+                    error('zarr:FileError', 'Failed to open temporary file for writing');
+                end
+                fwrite(fid, data, 'uint8');
+                fclose(fid);
+                
+                % Compress using gzip
+                gzip(temp_in);
+                
+                % Read compressed data
+                fid = fopen(temp_gz, 'rb');
+                if fid == -1
+                    error('zarr:FileError', 'Failed to open compressed file for reading');
+                end
+                encoded = fread(fid, inf, 'uint8=>uint8')';
+                fclose(fid);
+            catch ME
+                error('zarr:CompressionError', ...
+                    'Gzip compression failed: %s', ME.message);
             end
-            encoded = fread(fid, inf, 'uint8=>uint8')';
-            fclose(fid);
         end
         
         function decoded = decode(obj, data)
@@ -78,29 +90,42 @@ classdef GzipCodec < zarr.codecs.Codec
                 error('zarr:InvalidInput', 'Input must be uint8');
             end
             
-            % Write compressed data to temporary file
-            temp_gz = tempname;
-            temp_out = [temp_gz '.gz'];
-            cleanup = onCleanup(@() delete_if_exists({temp_gz, temp_out}));
-            
-            % Write compressed data
-            fid = fopen(temp_out, 'wb');
-            if fid == -1
-                error('zarr:FileError', 'Failed to open temporary file for writing');
+            % Handle empty array
+            if isempty(data)
+                decoded = zeros(0, 0, 'uint8');
+                return;
             end
-            fwrite(fid, data, 'uint8');
-            fclose(fid);
             
-            % Decompress using gunzip
-            gunzip(temp_out, fileparts(temp_gz));
-            
-            % Read decompressed data
-            fid = fopen(temp_gz, 'rb');
-            if fid == -1
-                error('zarr:FileError', 'Failed to open decompressed file for reading');
+            % Use MATLAB's built-in gunzip
+            try
+                % Create temporary files
+                temp_in = [tempname '.bin'];
+                temp_gz = [temp_in '.gz'];
+                cleanup = onCleanup(@() delete_if_exists({temp_in, temp_gz}));
+                
+                % Write compressed data
+                fid = fopen(temp_gz, 'wb');
+                if fid == -1
+                    error('zarr:FileError', 'Failed to open temporary file for writing');
+                end
+                fwrite(fid, data, 'uint8');
+                fclose(fid);
+                
+                % Decompress using gunzip
+                gunzip(temp_gz);
+                
+                % Read decompressed data (gunzip removes .gz extension)
+                temp_out = temp_in;
+                fid = fopen(temp_out, 'rb');
+                if fid == -1
+                    error('zarr:FileError', 'Failed to open decompressed file for reading');
+                end
+                decoded = fread(fid, inf, 'uint8=>uint8')';
+                fclose(fid);
+            catch ME
+                error('zarr:DecompressionError', ...
+                    'Gzip decompression failed: %s', ME.message);
             end
-            decoded = fread(fid, inf, 'uint8=>uint8')';
-            fclose(fid);
         end
         
         function config = get_config(obj)
