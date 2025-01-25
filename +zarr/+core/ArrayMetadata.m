@@ -1,22 +1,23 @@
 classdef ArrayMetadata < handle
-    % ARRAYMETADATA Handles metadata for Zarr arrays
-    %   Manages reading and writing metadata in both v2 and v3 formats
+    % ARRAYMETADATA Metadata for Zarr arrays
+    %   Handles metadata serialization and deserialization for both v2 and v3 formats
     
-    properties (SetAccess = private)
-        zarr_format      % Zarr format version (2 or 3)
-        shape           % Array shape
-        chunks         % Chunk shape
-        dtype          % Data type
-        compressor     % Compression codec
-        fill_value     % Fill value
-        order          % Memory layout ('C' or 'F')
-        filters        % List of filters
-        dimension_separator  % Dimension separator (v2 only)
+    properties
+        zarr_format   % Zarr format version (2 or 3)
+        shape         % Array shape
+        chunks       % Chunk shape
+        dtype        % Data type
+        compressor   % Compression codec
+        fill_value   % Fill value for uninitialized chunks
+        order        % Memory layout ('C' or 'F')
+        filters      % List of filters
+        dimension_separator  % Dimension separator for chunk keys
     end
     
     methods
         function obj = ArrayMetadata(zarr_format, shape, chunks, dtype, compressor, ...
                 fill_value, order, filters, dimension_separator)
+            % Create new array metadata
             obj.zarr_format = zarr_format;
             obj.shape = shape;
             obj.chunks = chunks;
@@ -38,87 +39,66 @@ classdef ArrayMetadata < handle
         end
         
         function write_v2(obj, store, path)
-            % Write v2 metadata
-            meta = struct();
-            meta.zarr_format = 2;
-            meta.shape = obj.shape;
-            meta.chunks = obj.chunks;
-            meta.dtype = obj.get_v2_dtype();
-            if ~isempty(obj.compressor)
-                meta.compressor = obj.compressor.get_config();
-            else
-                meta.compressor = [];
+            % Write v2 format metadata
+            metadata = struct();
+            metadata.zarr_format = 2;
+            metadata.shape = obj.shape(:);  % Column vector for v2
+            metadata.chunks = obj.chunks(:);  % Column vector for v2
+            metadata.dtype = obj.get_dtype_str();
+            config = obj.get_compressor_config();
+            if ~isempty(config)
+                config.name = config.id;  % Add name field for v2 format
             end
-            meta.fill_value = obj.fill_value;
-            meta.order = obj.order;
-            meta.filters = obj.filters;
-            if ~isempty(obj.dimension_separator)
-                meta.dimension_separator = obj.dimension_separator;
-            end
+            metadata.compressor = config;
+            metadata.fill_value = obj.fill_value;
+            metadata.order = obj.order;
+            metadata.filters = obj.filters;
+            metadata.dimension_separator = obj.dimension_separator;
             
-            % Write to .zarray
-            store.set([path '/.zarray'], uint8(jsonencode(meta)));
-            
-            % Initialize attributes if not already present
-            if ~store.contains([path '/.zattrs'])
-                store.set([path '/.zattrs'], uint8('{}'));
-            end
+            % Store metadata
+            store.set([path '/.zarray'], uint8(jsonencode(metadata)));
         end
         
         function write_v3(obj, store, path)
-            % Write v3 metadata
-            meta = struct();
-            meta.zarr_format = 3;
-            meta.node_type = 'array';
-            meta.shape = obj.shape;
-            meta.data_type = obj.get_v3_dtype();
-            
-            % Add chunk grid configuration
-            meta.chunk_grid = struct(...
+            % Write v3 format metadata
+            metadata = struct();
+            metadata.zarr_format = 3;
+            metadata.node_type = 'array';
+            metadata.shape = obj.shape(:);  % Column vector for v3
+            metadata.data_type = obj.get_dtype_str();
+            metadata.chunk_grid = struct(...
                 'name', 'regular', ...
-                'configuration', struct(...
-                    'chunk_shape', obj.chunks));
+                'configuration', struct('chunk_shape', obj.chunks(:)));  % Column vector for v3
             
-            % Add codec pipeline
+            % Create codec list
             codecs = {};
+            if ~isempty(obj.compressor)
+                config = obj.compressor.get_config();
+                config.name = config.id;  % Add name field for v3 format
+                codecs{end+1} = config;
+            end
             if ~isempty(obj.filters)
                 codecs = [codecs obj.filters];
             end
-            if ~isempty(obj.compressor)
-                codecs{end+1} = obj.compressor.get_config();
-            end
-            meta.codecs = codecs;
+            metadata.codecs = codecs;
             
-            if ~isempty(obj.fill_value)
-                meta.fill_value = obj.fill_value;
-            end
+            metadata.fill_value = obj.fill_value;
             
-            if strcmp(obj.order, 'F')
-                meta.storage_transformers = {struct(...
-                    'name', 'transpose', ...
-                    'configuration', struct())};
-            end
-            
-            % Write to zarr.json
-            store.set([path '/zarr.json'], uint8(jsonencode(meta)));
-            
-            % Initialize attributes if not already present
-            if ~store.contains([path '/attributes.json'])
-                store.set([path '/attributes.json'], uint8('{}'));
-            end
+            % Store metadata
+            store.set([path '/zarr.json'], uint8(jsonencode(metadata)));
         end
         
-        function dtype_str = get_v2_dtype(obj)
-            % Convert MATLAB dtype to Zarr v2 dtype string
+        function dtype_str = get_dtype_str(obj)
+            % Convert MATLAB type to Zarr dtype string
             switch obj.dtype
                 case 'double'
                     dtype_str = '<f8';
                 case 'single'
                     dtype_str = '<f4';
                 case 'int8'
-                    dtype_str = '|i1';
+                    dtype_str = '<i1';
                 case 'uint8'
-                    dtype_str = '|u1';
+                    dtype_str = '<u1';
                 case 'int16'
                     dtype_str = '<i2';
                 case 'uint16'
@@ -137,32 +117,12 @@ classdef ArrayMetadata < handle
             end
         end
         
-        function dtype_str = get_v3_dtype(obj)
-            % Convert MATLAB dtype to Zarr v3 dtype string
-            switch obj.dtype
-                case 'double'
-                    dtype_str = 'float64';
-                case 'single'
-                    dtype_str = 'float32';
-                case 'int8'
-                    dtype_str = 'int8';
-                case 'uint8'
-                    dtype_str = 'uint8';
-                case 'int16'
-                    dtype_str = 'int16';
-                case 'uint16'
-                    dtype_str = 'uint16';
-                case 'int32'
-                    dtype_str = 'int32';
-                case 'uint32'
-                    dtype_str = 'uint32';
-                case 'int64'
-                    dtype_str = 'int64';
-                case 'uint64'
-                    dtype_str = 'uint64';
-                otherwise
-                    error('zarr:UnsupportedDtype', ...
-                        'Unsupported dtype: %s', obj.dtype);
+        function config = get_compressor_config(obj)
+            % Get compressor configuration for v2 format
+            if isempty(obj.compressor)
+                config = [];
+            else
+                config = obj.compressor.get_config();
             end
         end
     end

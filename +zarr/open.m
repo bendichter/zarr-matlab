@@ -54,8 +54,7 @@ function obj = open(store, varargin)
     if store.contains([path '/zarr.json']) || ...
        store.contains([path '/.zarray'])
         % Path points to array
-        obj = zarr.core.Array(store, path, ...
-            'zarr_format', zarr_format);
+        obj = zarr.core.Array.from_metadata(store, path, zarr_format);
     else
         % Path points to group
         obj = zarr.core.Group(store, path, ...

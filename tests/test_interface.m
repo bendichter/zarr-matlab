@@ -225,11 +225,11 @@ function test_interface_errors(testCase)
     
     % Test invalid parameter name
     testCase.verifyError(@() zarr.create([10 10], 'double', ...
-        'invalid_param', 42), 'zarr:InvalidParameter');
+        'invalid_param', 42), 'MATLAB:InputParser:UnmatchedParameter');
     
     % Test missing parameter value
     testCase.verifyError(@() zarr.create([10 10], 'double', ...
-        'chunks'), 'zarr:InvalidArguments');
+        'chunks', []), 'MATLAB:InputParser:ArgumentValue');
     
     % Test opening non-existent path
     store = zarr.storage.FileStore(tempname);

@@ -64,10 +64,10 @@ classdef Array < handle
             p.addRequired('shape', @isnumeric);
             p.addRequired('dtype');
             p.addParameter('chunks', [], @(x) isempty(x) || isnumeric(x));
-            p.addParameter('compressor', zarr.codecs.GzipCodec(), @(x) isempty(x) || isa(x, 'zarr.codecs.GzipCodec'));
+            p.addParameter('compressor', zarr.codecs.GzipCodec(), @(x) isempty(x) || isa(x, 'zarr.codecs.Codec'));
             p.addParameter('fill_value', 0, @(x) true);  % Accept any value
             p.addParameter('order', 'C', @(x) ismember(x, {'C', 'F'}));
-            p.addParameter('filters', {}, @iscell);
+            p.addParameter('filters', cell(0), @iscell);
             p.addParameter('dimension_separator', '/', @(x) ismember(x, {'.', '/'}));
             p.addParameter('zarr_format', 3, @(x) ismember(x, [2, 3]));
             p.addParameter('attributes', struct(), @isstruct);
@@ -75,7 +75,7 @@ classdef Array < handle
             p.parse(store, path, shape, dtype, varargin{:});
             
             % Validate shape
-            shape = p.Results.shape(:)';  % Ensure row vector
+            shape = double(p.Results.shape(:));  % Ensure column vector
             if ~isvector(shape)
                 error('zarr:InvalidShape', 'Shape must be a vector');
             end
@@ -87,7 +87,7 @@ classdef Array < handle
             obj.store = p.Results.store;
             obj.path = p.Results.path;
             obj.shape = shape;
-            obj.dtype = obj.parse_dtype(p.Results.dtype);
+            obj.dtype = zarr.core.Array.parse_dtype(p.Results.dtype);
             obj.chunks = obj.normalize_chunks(p.Results.chunks);
             obj.compressor = p.Results.compressor;
             obj.fill_value = p.Results.fill_value;
@@ -124,34 +124,13 @@ classdef Array < handle
             end
         end
         
-        function dtype = parse_dtype(~, dtype_in)
-            % Convert input dtype to MATLAB type
-            if ischar(dtype_in)
-                switch lower(dtype_in)
-                    case {'double', 'float64'}
-                        dtype = 'double';
-                    case {'single', 'float32'}
-                        dtype = 'single';
-                    case {'int8', 'int16', 'int32', 'int64', ...
-                          'uint8', 'uint16', 'uint32', 'uint64'}
-                        dtype = dtype_in;
-                    otherwise
-                        error('zarr:InvalidDtype', ...
-                            'Unsupported dtype: %s', dtype_in);
-                end
-            else
-                % Assume it's already a valid MATLAB type
-                dtype = dtype_in;
-            end
-        end
-        
         function chunks = normalize_chunks(obj, chunks_in)
             % Normalize chunk shape, using automatic chunking if not specified
             if isempty(chunks_in)
                 % Implement automatic chunk shape calculation
                 chunks = obj.guess_chunks();
             else
-                chunks = chunks_in(:)';  % Ensure row vector
+                chunks = double(chunks_in(:));  % Ensure column vector
                 if length(chunks) ~= length(obj.shape)
                     error('zarr:InvalidChunks', ...
                         'Chunk shape must match array dimensionality');
@@ -301,7 +280,7 @@ classdef Array < handle
             end
             
             % Ensure row vector
-            new_shape = new_shape(:)';
+            new_shape = double(new_shape(:));  % Ensure column vector
             
             % Check dimensionality
             if numel(new_shape) ~= numel(obj.shape)
@@ -338,6 +317,166 @@ classdef Array < handle
             
             % Update metadata
             obj.metadata.write(obj.store, obj.path);
+        end
+    end
+    
+    methods (Static)
+        function dtype = parse_dtype(dtype_in)
+            % Convert input dtype to MATLAB type
+            if ischar(dtype_in)
+                switch lower(dtype_in)
+                    case {'double', 'float64', '<f8'}
+                        dtype = 'double';
+                    case {'single', 'float32', '<f4'}
+                        dtype = 'single';
+                    case {'int8', '<i1'}
+                        dtype = 'int8';
+                    case {'uint8', '<u1'}
+                        dtype = 'uint8';
+                    case {'int16', '<i2'}
+                        dtype = 'int16';
+                    case {'uint16', '<u2'}
+                        dtype = 'uint16';
+                    case {'int32', '<i4'}
+                        dtype = 'int32';
+                    case {'uint32', '<u4'}
+                        dtype = 'uint32';
+                    case {'int64', '<i8'}
+                        dtype = 'int64';
+                    case {'uint64', '<u8'}
+                        dtype = 'uint64';
+                    otherwise
+                        error('zarr:InvalidDtype', ...
+                            'Unsupported dtype: %s', dtype_in);
+                end
+            else
+                % Assume it's already a valid MATLAB type
+                dtype = dtype_in;
+            end
+        end
+        
+        function obj = from_metadata(store, path, zarr_format)
+            % Create array from existing metadata
+            %
+            % Parameters:
+            %   store: zarr.core.Store
+            %       Storage backend
+            %   path: string
+            %       Path within store
+            %   zarr_format: numeric
+            %       Zarr format version (2 or 3)
+            
+            % Read metadata
+            if zarr_format == 2
+                meta_path = [path '/.zarray'];
+            else
+                meta_path = [path '/zarr.json'];
+            end
+            
+            if ~store.contains(meta_path)
+                error('zarr:InvalidMetadata', 'No metadata found at path: %s', path);
+            end
+            
+            json_bytes = store.get(meta_path);
+            metadata = jsondecode(char(json_bytes));
+            
+            % Extract array properties with defaults
+            shape = []; chunks = []; dtype = []; compressor = [];
+            fill_value = 0; order = 'C'; filters = cell(0); dimension_separator = '/';
+            
+            % Handle v2 format
+            if zarr_format == 2
+                if ~isfield(metadata, 'shape') || ~isfield(metadata, 'chunks') || ...
+                   ~isfield(metadata, 'dtype')
+                    error('zarr:InvalidMetadata', 'Missing required fields in v2 metadata');
+                end
+                
+                shape = double(metadata.shape(:)');  % Ensure row vector
+                chunks = double(metadata.chunks(:)');
+                dtype = zarr.core.Array.parse_dtype(metadata.dtype);
+                
+                if isfield(metadata, 'compressor') && ~isempty(metadata.compressor)
+                    if strcmp(metadata.compressor.id, 'blosc')
+                        compressor = zarr.codecs.BloscCodec(...
+                            'cname', metadata.compressor.cname, ...
+                            'clevel', metadata.compressor.clevel, ...
+                            'shuffle', metadata.compressor.shuffle);
+                    elseif strcmp(metadata.compressor.id, 'gzip')
+                        compressor = zarr.codecs.GzipCodec(metadata.compressor.level);
+                    elseif strcmp(metadata.compressor.id, 'zstd')
+                        compressor = zarr.codecs.ZstdCodec(metadata.compressor.level);
+                    end
+                end
+                
+                if isfield(metadata, 'fill_value')
+                    fill_value = metadata.fill_value;
+                end
+                if isfield(metadata, 'order')
+                    order = metadata.order;
+                end
+                if isfield(metadata, 'filters')
+                    if iscell(metadata.filters)
+                        filters = metadata.filters;
+                    end
+                end
+                if isfield(metadata, 'dimension_separator')
+                    dimension_separator = metadata.dimension_separator;
+                end
+            else
+                % Handle v3 format
+                if ~isfield(metadata, 'shape') || ~isfield(metadata, 'chunk_grid') || ...
+                   ~isfield(metadata.chunk_grid, 'configuration') || ...
+                   ~isfield(metadata.chunk_grid.configuration, 'chunk_shape')
+                    error('zarr:InvalidMetadata', 'Missing required fields in v3 metadata');
+                end
+                
+                shape = double(metadata.shape(:)');  % Ensure row vector
+                chunks = double(metadata.chunk_grid.configuration.chunk_shape(:)');
+                
+                % Handle different dtype field names
+                if isfield(metadata, 'data_type')
+                    dtype = zarr.core.Array.parse_dtype(metadata.data_type);
+                elseif isfield(metadata, 'dtype')
+                    dtype = zarr.core.Array.parse_dtype(metadata.dtype);
+                else
+                    error('zarr:InvalidMetadata', 'Missing data type in metadata');
+                end
+                
+                % Find compressor in codecs
+                if isfield(metadata, 'codecs')
+                    for i = 1:numel(metadata.codecs)
+                        codec = metadata.codecs(i);
+                        if strcmp(codec.name, 'blosc')
+                            compressor = zarr.codecs.BloscCodec(...
+                                'cname', codec.cname, ...
+                                'clevel', codec.clevel, ...
+                                'shuffle', codec.shuffle);
+                            break;
+                        elseif strcmp(codec.name, 'gzip')
+                            compressor = zarr.codecs.GzipCodec(codec.level);
+                            break;
+                        elseif strcmp(codec.name, 'zstd')
+                            compressor = zarr.codecs.ZstdCodec(codec.level);
+                            break;
+                        end
+                    end
+                end
+                
+                % Optional fields with defaults
+                if isfield(metadata, 'fill_value')
+                    fill_value = metadata.fill_value;
+                end
+            end
+            
+            % Create array with extracted properties
+            obj = zarr.core.Array(store, path, shape, dtype, ...
+                'chunks', chunks, ...
+                'compressor', compressor, ...
+                'fill_value', fill_value, ...
+                'order', order, ...
+                'filters', filters, ...
+                'dimension_separator', dimension_separator, ...
+                'zarr_format', zarr_format);
         end
     end
 end

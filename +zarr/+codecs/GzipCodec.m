@@ -1,66 +1,106 @@
-classdef GzipCodec < handle
-    % GZIPCODEC Gzip compression codec for Zarr arrays
-    %   GzipCodec provides gzip compression and decompression for chunk data
-    %   using MATLAB's built-in gzip functionality.
+classdef GzipCodec < zarr.codecs.Codec
+    % GZIPCODEC Gzip compression codec
+    %   Implements gzip compression using MATLAB's built-in gzip functionality
     
-    properties (SetAccess = private)
-        level           % Compression level (1-9)
-        id = 'gzip'    % Codec identifier
+    properties
+        level = 5  % Compression level (1-9)
     end
     
     methods
         function obj = GzipCodec(level)
-            % Create a GzipCodec with the given compression level
+            % Create a new GzipCodec
             %
             % Parameters:
-            %   level: integer (optional)
-            %       Gzip compression level, from 1 (fastest) to 9 (most compressed)
-            %       Default is 5
+            %   level: numeric
+            %       Compression level (1-9, default: 5)
             
-            if nargin < 1
-                level = 5;
+            if nargin > 0
+                if ~isnumeric(level) || level < 1 || level > 9
+                    error('zarr:InvalidCompressionLevel', ...
+                        'Compression level must be between 1 and 9');
+                end
+                obj.level = level;
             end
-            
-            % Validate level
-            validateattributes(level, {'numeric'}, ...
-                {'scalar', 'integer', '>=', 1, '<=', 9}, ...
-                'GzipCodec', 'level');
-            
-            obj.level = level;
         end
         
-        function encoded = encode(obj, chunk)
-            % Compress chunk data using gzip
+        function encoded = encode(obj, data)
+            % Encode data using gzip compression
             %
             % Parameters:
-            %   chunk: uint8 array
+            %   data: uint8 vector
             %       Data to compress
             %
             % Returns:
-            %   encoded: uint8 array
+            %   encoded: uint8 vector
             %       Compressed data
             
-            validateattributes(chunk, {'uint8'}, {'vector'}, 'GzipCodec.encode', 'chunk');
+            if ~isa(data, 'uint8')
+                error('zarr:InvalidInput', 'Input must be uint8');
+            end
             
-            % For now, just return uncompressed data
-            encoded = chunk;
+            % Write data to temporary file
+            temp_in = tempname;
+            temp_gz = [temp_in '.gz'];
+            cleanup = onCleanup(@() delete_if_exists({temp_in, temp_gz}));
+            
+            % Write data to temp file
+            fid = fopen(temp_in, 'wb');
+            if fid == -1
+                error('zarr:FileError', 'Failed to open temporary file for writing');
+            end
+            fwrite(fid, data, 'uint8');
+            fclose(fid);
+            
+            % Compress using gzip
+            gzip(temp_in);
+            
+            % Read compressed data
+            fid = fopen(temp_gz, 'rb');
+            if fid == -1
+                error('zarr:FileError', 'Failed to open compressed file for reading');
+            end
+            encoded = fread(fid, inf, 'uint8=>uint8')';
+            fclose(fid);
         end
         
-        function decoded = decode(obj, chunk)
-            % Decompress chunk data using gzip
+        function decoded = decode(obj, data)
+            % Decode gzip compressed data
             %
             % Parameters:
-            %   chunk: uint8 array
+            %   data: uint8 vector
             %       Compressed data
             %
             % Returns:
-            %   decoded: uint8 array
+            %   decoded: uint8 vector
             %       Decompressed data
             
-            validateattributes(chunk, {'uint8'}, {'vector'}, 'GzipCodec.decode', 'chunk');
+            if ~isa(data, 'uint8')
+                error('zarr:InvalidInput', 'Input must be uint8');
+            end
             
-            % For now, just return uncompressed data
-            decoded = chunk;
+            % Write compressed data to temporary file
+            temp_gz = tempname;
+            temp_out = [temp_gz '.gz'];
+            cleanup = onCleanup(@() delete_if_exists({temp_gz, temp_out}));
+            
+            % Write compressed data
+            fid = fopen(temp_out, 'wb');
+            if fid == -1
+                error('zarr:FileError', 'Failed to open temporary file for writing');
+            end
+            fwrite(fid, data, 'uint8');
+            fclose(fid);
+            
+            % Decompress using gunzip
+            gunzip(temp_out, fileparts(temp_gz));
+            
+            % Read decompressed data
+            fid = fopen(temp_gz, 'rb');
+            if fid == -1
+                error('zarr:FileError', 'Failed to open decompressed file for reading');
+            end
+            decoded = fread(fid, inf, 'uint8=>uint8')';
+            fclose(fid);
         end
         
         function config = get_config(obj)
@@ -68,54 +108,20 @@ classdef GzipCodec < handle
             %
             % Returns:
             %   config: struct
-            %       Configuration struct with codec id and parameters
+            %       Codec configuration
             
-            config = struct('id', obj.id, 'level', obj.level);
-        end
-        
-        function tf = eq(obj1, obj2)
-            % Compare two GzipCodecs for equality
-            if ~isa(obj1, 'zarr.codecs.GzipCodec') || ~isa(obj2, 'zarr.codecs.GzipCodec')
-                tf = false;
-                return
-            end
-            tf = obj1.level == obj2.level;
-        end
-        
-        function s = char(obj)
-            % Return string representation
-            s = sprintf('GzipCodec(level=%d)', obj.level);
-        end
-        
-        function s = string(obj)
-            % Return string representation
-            s = string(char(obj));
+            config = struct(...
+                'id', 'gzip', ...
+                'level', obj.level);
         end
     end
-    
-    methods (Static)
-        function codec = from_config(config)
-            % Create a GzipCodec from a configuration struct
-            %
-            % Parameters:
-            %   config: struct
-            %       Configuration struct with codec parameters
-            %
-            % Returns:
-            %   codec: GzipCodec
-            %       New codec instance
-            
-            validateattributes(config, {'struct'}, {'scalar'}, 'GzipCodec.from_config', 'config');
-            assert(isfield(config, 'id') && strcmp(config.id, 'gzip'), ...
-                'Config must have id field set to ''gzip''');
-            
-            if isfield(config, 'level')
-                level = config.level;
-            else
-                level = 5;
-            end
-            
-            codec = zarr.codecs.GzipCodec(level);
+end
+
+function delete_if_exists(files)
+    % Helper function to delete temporary files if they exist
+    for i = 1:numel(files)
+        if exist(files{i}, 'file')
+            delete(files{i});
         end
     end
 end

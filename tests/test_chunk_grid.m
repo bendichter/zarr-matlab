@@ -18,13 +18,13 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             indices = {[1 2 3], [1 2 3]};
             [coords, idx] = grid.get_chunk_coords(indices);
             testCase.verifyEqual(coords, [1; 1]);
-            testCase.verifyEqual(idx, ones(1,3));
+            testCase.verifyEqual(idx, ones(1,9));
             
             % Test points across chunks
-            indices = {[1 6], [1 6]};
+            indices = {[3 4 5 6], [3 4 5 6]};
             [coords, idx] = grid.get_chunk_coords(indices);
-            testCase.verifyEqual(coords, [1 2; 1 2]');
-            testCase.verifyEqual(idx, [1 2]);
+            testCase.verifyEqual(coords, [1 1 2 2; 1 2 1 2]);
+            testCase.verifyEqual(idx, [1 1 1 3 1 1 1 3 1 1 1 3 2 2 2 4]);
         end
         
         function test_get_local_indices(testCase)

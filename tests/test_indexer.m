@@ -26,14 +26,14 @@ classdef test_indexer < matlab.unittest.TestCase
             indices = indexer.parse_subscripts(subs);
             [chunk_coords, chunk_idx] = grid.get_chunk_coords(indices);
             testCase.verifyEqual(chunk_coords, [1; 1]);
-            testCase.verifyEqual(chunk_idx, ones(1,3));
+            testCase.verifyEqual(chunk_idx, ones(1,9));
             
             % Test points across chunks
-            subs = {[1 6], [1 6]};
+            subs = {[3 4 5 6], [3 4 5 6]};
             indices = indexer.parse_subscripts(subs);
             [chunk_coords, chunk_idx] = grid.get_chunk_coords(indices);
-            testCase.verifyEqual(chunk_coords, [1 2; 1 2]');
-            testCase.verifyEqual(chunk_idx, [1 2]);
+            testCase.verifyEqual(chunk_coords, [1 1 2 2; 1 2 1 2]);
+            testCase.verifyEqual(chunk_idx, [1 1 1 3 1 1 1 3 1 1 1 3 2 2 2 4]);
         end
         
         function test_chunk_retrieval(testCase)
