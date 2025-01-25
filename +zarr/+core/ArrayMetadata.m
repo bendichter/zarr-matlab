@@ -57,8 +57,7 @@ classdef ArrayMetadata < handle
             end
             
             % Write to .zarray
-            json_str = jsonencode(meta);
-            store.set([path '/.zarray'], uint8(json_str));
+            store.set([path '/.zarray'], uint8(jsonencode(meta)));
             
             % Initialize attributes if not already present
             if ~store.contains([path '/.zattrs'])
@@ -101,8 +100,7 @@ classdef ArrayMetadata < handle
             end
             
             % Write to zarr.json
-            json_str = jsonencode(meta);
-            store.set([path '/zarr.json'], uint8(json_str));
+            store.set([path '/zarr.json'], uint8(jsonencode(meta)));
             
             % Initialize attributes if not already present
             if ~store.contains([path '/attributes.json'])

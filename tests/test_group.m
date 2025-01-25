@@ -48,6 +48,16 @@ function test_group_arrays(testCase)
     testCase.verifyTrue(group.contains('data1'));
     testCase.verifyTrue(group.contains('data2'));
     
+    % Print metadata for debugging
+    if store.contains('data1/zarr.json')
+        disp('data1/zarr.json:');
+        disp(char(store.get('data1/zarr.json')));
+    end
+    if store.contains('data1/.zarray')
+        disp('data1/.zarray:');
+        disp(char(store.get('data1/.zarray')));
+    end
+    
     % Verify data
     testCase.verifyEqual(group.data1(:,:), data1);
     testCase.verifyEqual(group.data2(:,:), data2);
@@ -80,6 +90,16 @@ function test_nested_groups(testCase)
     array2(:,:) = 2*data;
     array3(:,:) = 3*data;
     
+    % Print metadata for debugging
+    if store.contains('group1/data2/zarr.json')
+        disp('group1/data2/zarr.json:');
+        disp(char(store.get('group1/data2/zarr.json')));
+    end
+    if store.contains('group1/data2/.zarray')
+        disp('group1/data2/.zarray:');
+        disp(char(store.get('group1/data2/.zarray')));
+    end
+    
     % Access through hierarchy
     testCase.verifyEqual(root.data1(:,:), data);
     testCase.verifyEqual(root.group1.data2(:,:), 2*data);
@@ -106,6 +126,13 @@ function test_group_listing(testCase)
     
     % List contents
     items = group.list();
+    
+    % Print all store keys for debugging
+    disp('All store keys:');
+    keys = store.list('');
+    for i = 1:numel(keys)
+        disp(keys{i});
+    end
     
     % Verify listing
     testCase.verifyEqual(numel(items), 4);
