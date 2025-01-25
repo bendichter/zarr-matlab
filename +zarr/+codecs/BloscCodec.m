@@ -24,26 +24,44 @@ classdef BloscCodec < handle
             %   'blocksize': numeric
             %       Block size (0 for auto, default: 0)
             
-            try
-                % Parse inputs
-                p = inputParser;
-                p.addParameter('cname', 'zstd', @(x) ismember(x, {'zstd', 'lz4', 'zlib'}));
-                p.addParameter('clevel', 5, @(x) isnumeric(x) && isscalar(x) && ...
-                    x >= 1 && x <= 9 && mod(x, 1) == 0);
-                p.addParameter('shuffle', true, @islogical);
-                p.addParameter('blocksize', 0, @(x) isnumeric(x) && isscalar(x) && x >= 0);
-                
-                p.parse(varargin{:});
-                
-                % Store properties
-                obj.cname = p.Results.cname;
-                obj.clevel = p.Results.clevel;
-                obj.shuffle = p.Results.shuffle;
-                obj.blocksize = p.Results.blocksize;
-            catch ME
-                throw(zarr.errors.CodecError(...
-                    sprintf('Invalid codec parameters: %s', ME.message)));
+            % Parse inputs
+            p = inputParser;
+            validCompressors = {'zstd', 'lz4', 'zlib'};
+            p.addParameter('cname', 'zstd', @(x) ischar(x) || isstring(x));
+            p.addParameter('clevel', 5, @isnumeric);
+            p.addParameter('shuffle', true, @islogical);
+            p.addParameter('blocksize', 0, @isnumeric);
+            p.parse(varargin{:});
+            
+            % Validate parameters
+            cname = p.Results.cname;
+            if ~any(strcmp(cname, validCompressors))
+                throw(MException('MATLAB:unrecognizedStringChoice', ...
+                    'Invalid compressor name. Expected one of: zstd, lz4, zlib'));
             end
+            
+            clevel = p.Results.clevel;
+            if ~isscalar(clevel) || ~(clevel >= 1 && clevel <= 9) || mod(clevel, 1) ~= 0
+                if clevel < 1
+                    throw(MException('MATLAB:notGreaterEqual', ...
+                        'Compression level must be >= 1'));
+                else
+                    throw(MException('MATLAB:notLessEqual', ...
+                        'Compression level must be <= 9'));
+                end
+            end
+            
+            blocksize = p.Results.blocksize;
+            if ~isscalar(blocksize) || blocksize < 0
+                throw(MException('MATLAB:validation:IncompatibleValue', ...
+                    'Blocksize must be a non-negative scalar'));
+            end
+            
+            % Store properties
+            obj.cname = p.Results.cname;
+            obj.clevel = p.Results.clevel;
+            obj.shuffle = p.Results.shuffle;
+            obj.blocksize = p.Results.blocksize;
         end
         
         function config = get_config(obj)
@@ -73,18 +91,32 @@ classdef BloscCodec < handle
             %       Compressed data
             
             % Validate input
-            validateattributes(data, {'uint8'}, {'vector'});
+            if ~isa(data, 'uint8')
+                throw(MException('MATLAB:invalidType', ...
+                    'Input must be of type uint8'));
+            end
+            
+            % Handle empty array
+            if isempty(data)
+                compressed = uint8([]);
+                return;
+            end
             
             try
                 % Call Blosc compression
                 compressed = blosc_compress(data, ...
-                    'compressor', obj.cname, ...
-                    'level', obj.clevel, ...
-                    'shuffle', obj.shuffle, ...
-                    'blocksize', obj.blocksize);
+                    obj.cname, ...
+                    obj.clevel, ...
+                    obj.shuffle, ...
+                    obj.blocksize);
             catch ME
-                throw(zarr.errors.CodecError(...
-                    sprintf('Blosc compression failed: %s', ME.message)));
+                if contains(ME.message, 'must be uint8')
+                    throw(zarr.errors.CodecError(...
+                        'Input data must be uint8 array'));
+                else
+                    throw(zarr.errors.CodecError(...
+                        sprintf('Blosc compression failed: %s', ME.message)));
+                end
             end
         end
         
@@ -99,8 +131,17 @@ classdef BloscCodec < handle
             %   decompressed: uint8 vector
             %       Decompressed data
             
+            % Handle empty array
+            if isempty(data)
+                decompressed = uint8([]);
+                return;
+            end
+            
             % Validate input
-            validateattributes(data, {'uint8'}, {'vector'});
+            if ~isa(data, 'uint8')
+                throw(MException('MATLAB:invalidType', ...
+                    'Input must be of type uint8'));
+            end
             
             try
                 % Call Blosc decompression

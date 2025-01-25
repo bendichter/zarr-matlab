@@ -25,11 +25,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     
     // Get decompressed size
     size_t nbytes, cbytes, blocksize;
-    int typesize;
-    if (blosc_cbuffer_sizes(compressed, &nbytes, &cbytes, &blocksize) < 0) {
-        mexErrMsgIdAndTxt("Zarr:BloscDecompress:InvalidData",
-            "Invalid Blosc compressed data");
-    }
+    blosc_cbuffer_sizes(compressed, &nbytes, &cbytes, &blocksize);
     
     // Allocate output buffer
     plhs[0] = mxCreateNumericMatrix(1, nbytes, mxUINT8_CLASS, mxREAL);

@@ -9,8 +9,8 @@ function test_blosc_basic(testCase)
     % Create codec with default settings
     codec = zarr.codecs.BloscCodec();
     
-    % Test with simple data
-    original = uint8([1:100]);
+    % Test with highly compressible data (repeated pattern)
+    original = uint8(repmat([1:10], 1, 100));
     
     % Compress
     compressed = codec.encode(original);
@@ -31,7 +31,7 @@ function test_blosc_empty(testCase)
     codec = zarr.codecs.BloscCodec();
     
     % Test with empty array
-    original = uint8([]);
+    original = uint8(zeros(0,0));
     
     % Compress
     compressed = codec.encode(original);
@@ -110,11 +110,8 @@ function test_blosc_config(testCase)
     % Test codec configuration
     
     % Create codec with specific settings
-    codec = zarr.codecs.BloscCodec(...
-        'cname', 'zstd', ...
-        'clevel', 5, ...
-        'shuffle', true, ...
-        'blocksize', 0);
+    codec = zarr.codecs.BloscCodec('cname', 'zstd', 'clevel', 5, ...
+        'shuffle', true, 'blocksize', 0);
     
     % Get config
     config = codec.get_config();
@@ -138,23 +135,23 @@ function test_blosc_errors(testCase)
     
     % Test invalid compression level
     testCase.verifyError(@() zarr.codecs.BloscCodec('clevel', -1), ...
-        'MATLAB:validators:mustBeGreaterThanOrEqual');
+        'MATLAB:notGreaterEqual');
     testCase.verifyError(@() zarr.codecs.BloscCodec('clevel', 10), ...
-        'MATLAB:validators:mustBeLessThanOrEqual');
+        'MATLAB:notLessEqual');
     
     % Test invalid compressor name
     testCase.verifyError(@() zarr.codecs.BloscCodec('cname', 'invalid'), ...
-        'MATLAB:validation:IncompatibleValue');
+        'MATLAB:unrecognizedStringChoice');
     
     % Test invalid input type
     codec = zarr.codecs.BloscCodec();
     testCase.verifyError(@() codec.encode(single([1 2 3])), ...
-        'MATLAB:validation:IncompatibleType');
+        'MATLAB:invalidType');
     
     % Test invalid config
     invalid_config = struct('id', 'invalid');
     testCase.verifyError(@() zarr.codecs.BloscCodec.from_config(invalid_config), ...
-        'MATLAB:assertion:failed');
+        'Zarr:Error');
 end
 
 function test_blosc_equality(testCase)

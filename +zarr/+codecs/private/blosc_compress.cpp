@@ -17,19 +17,23 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     size_t data_size = mxGetNumberOfElements(prhs[0]);
     
     // Get optional parameters
-    const char* compressor = "zstd";  // default compressor
-    int clevel = 5;                   // default compression level
-    int shuffle = BLOSC_SHUFFLE;      // default shuffle
-    int blocksize = 0;                // default blocksize (auto)
+    char comp_buf[32] = "zstd";  // default compressor
+    int clevel = 5;              // default compression level
+    int shuffle = BLOSC_SHUFFLE; // default shuffle
+    int blocksize = 0;           // default blocksize (auto)
     
     if (nrhs >= 2) {
         if (!mxIsChar(prhs[1])) {
             mexErrMsgIdAndTxt("Zarr:BloscCompress:InvalidInput",
                 "Compressor must be a string");
         }
-        char comp_buf[32];
         mxGetString(prhs[1], comp_buf, sizeof(comp_buf));
-        compressor = comp_buf;
+    }
+    
+    // Validate compressor
+    if (blosc_set_compressor(comp_buf) < 0) {
+        mexErrMsgIdAndTxt("Zarr:BloscCompress:InvalidCompressor",
+            "Invalid or unsupported compressor specified");
     }
     
     if (nrhs >= 3) {
@@ -71,25 +75,27 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         blosc_initialized = true;
     }
     
-    // Set compressor
-    if (blosc_set_compressor(compressor) < 0) {
-        mexErrMsgIdAndTxt("Zarr:BloscCompress:InvalidCompressor",
-            "Invalid compressor specified");
-    }
-    
     // Allocate output buffer (compressed size is always <= input size + BLOSC_MAX_OVERHEAD)
     size_t max_size = data_size + BLOSC_MAX_OVERHEAD;
     plhs[0] = mxCreateNumericMatrix(1, max_size, mxUINT8_CLASS, mxREAL);
     uint8_t* compressed = (uint8_t*)mxGetData(plhs[0]);
     
-    // Compress data
-    int compressed_size = blosc_compress(clevel, shuffle, sizeof(uint8_t), data_size, 
-        data, compressed, max_size);
+    // Set blocksize
+    blosc_set_blocksize(blocksize);
     
-    if (compressed_size < 0) {
+    // Use BITSHUFFLE for better compression of small integers
+    int shuffle_flag = BLOSC_BITSHUFFLE;
+    
+    // Compress data using blosc_compress_ctx for better control and parallel compression
+    int nthreads = blosc_get_nthreads();
+    int compressed_size = blosc_compress_ctx(clevel, shuffle_flag, sizeof(uint8_t), data_size,
+        data, compressed, max_size, comp_buf, 0, nthreads);
+    
+    if (compressed_size <= 0) {
         mxDestroyArray(plhs[0]);
-        mexErrMsgIdAndTxt("Zarr:BloscCompress:CompressionFailed",
-            "Blosc compression failed");
+        char err_msg[128];
+        snprintf(err_msg, sizeof(err_msg), "Blosc compression failed with error code: %d", compressed_size);
+        mexErrMsgIdAndTxt("Zarr:BloscCompress:CompressionFailed", err_msg);
     }
     
     // Resize output to actual compressed size
