@@ -5,16 +5,14 @@ classdef ChunkGrid < handle
     properties (SetAccess = private)
         shape               % Array shape
         chunks             % Chunk shape
-        zarr_format        % Zarr format version
-        dimension_separator % Dimension separator for v2
+        dimension_separator % Dimension separator
     end
     
     methods
-        function obj = ChunkGrid(shape, chunks, zarr_format, dimension_separator)
+        function obj = ChunkGrid(shape, chunks, dimension_separator)
             % Keep as row vectors internally
             obj.shape = shape(:)';
             obj.chunks = chunks(:)';
-            obj.zarr_format = zarr_format;
             obj.dimension_separator = dimension_separator;
         end
         
@@ -41,15 +39,9 @@ classdef ChunkGrid < handle
             coords = chunk_coords(:);
             coord_strs = arrayfun(@num2str, coords, 'UniformOutput', false);
             
-            % Join with appropriate separator
-            if obj.zarr_format == 2
-                % v2 format: path/x.y.z
-                key = strjoin(coord_strs, obj.dimension_separator);
-                store_key = [path '/' key];
-            else
-                % v3 format: path/c/x/y/z
-                store_key = [path '/c/' strjoin(coord_strs, '/')];
-            end
+            % Join with dimension separator
+            key = strjoin(coord_strs, obj.dimension_separator);
+            store_key = [path '/' key];
         end
         
         function chunk_coords = key_to_coords(obj, store_key, path)
@@ -65,31 +57,16 @@ classdef ChunkGrid < handle
             %   chunk_coords: numeric vector
             %       Chunk coordinates
             
-            if obj.zarr_format == 2
-                % v2 format: path/x.y.z
-                % Remove path prefix
-                prefix = [path '/'];
-                if ~startsWith(store_key, prefix)
-                    error('zarr:InvalidKey', ...
-                        'Invalid chunk key format for v2');
-                end
-                key = store_key(length(prefix)+1:end);
-                
-                % Split on dimension separator
-                coord_strs = strsplit(key, obj.dimension_separator);
-            else
-                % v3 format: path/c/x/y/z
-                % Remove path and c prefix
-                prefix = [path '/c/'];
-                if ~startsWith(store_key, prefix)
-                    error('zarr:InvalidKey', ...
-                        'Invalid chunk key format for v3');
-                end
-                key = store_key(length(prefix)+1:end);
-                
-                % Split on forward slash
-                coord_strs = strsplit(key, '/');
+            % Remove path prefix
+            prefix = [path '/'];
+            if ~startsWith(store_key, prefix)
+                error('zarr:InvalidKey', ...
+                    'Invalid chunk key format');
             end
+            key = store_key(length(prefix)+1:end);
+            
+            % Split on dimension separator
+            coord_strs = strsplit(key, obj.dimension_separator);
             
             % Convert strings to numbers and return as row vector
             chunk_coords = cellfun(@str2double, coord_strs);

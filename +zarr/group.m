@@ -11,8 +11,6 @@ function group = group(varargin)
 %   Parameters:
 %     'path': string
 %         Path within store (default: '')
-%     'zarr_format': numeric
-%         Zarr format version (2 or 3, default: 3)
 %     'attributes': struct
 %         User-defined attributes
 %
@@ -35,7 +33,6 @@ function group = group(varargin)
     
     % Create group
     group = zarr.core.Group(store, params.path, ...
-        'zarr_format', params.zarr_format, ...
         'attributes', params.attributes);
 end
 
@@ -58,7 +55,6 @@ function [store, params] = parse_args(varargin)
     % Set default parameters
     params = struct();
     params.path = '';
-    params.zarr_format = 3;
     params.attributes = struct();
     
     % Parse optional parameters
@@ -75,8 +71,6 @@ function [store, params] = parse_args(varargin)
             switch lower(name)
                 case 'path'
                     params.path = value;
-                case 'zarr_format'
-                    params.zarr_format = value;
                 case 'attributes'
                     params.attributes = value;
                 otherwise

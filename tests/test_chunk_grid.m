@@ -6,7 +6,7 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             % Test chunk coordinate calculation
             shape = [10 10];
             chunks = [5 5];
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '/');
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             
             % Test single point
             indices = {1, 1};
@@ -31,7 +31,7 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             % Test local index calculation
             shape = [10 10];
             chunks = [5 5];
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '/');
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             
             % Test single point in first chunk
             global_indices = {1, 1};
@@ -56,7 +56,7 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             % Test chunk shape calculation
             shape = [10 10];
             chunks = [5 5];
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '/');
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             
             % Test regular chunk
             coords = [1 1];
@@ -71,7 +71,7 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             % Test with non-uniform chunks
             shape = [12 12];
             chunks = [5 5];
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '/');
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             
             coords = [3 3];
             chunk_shape = grid.get_chunk_shape(coords);
@@ -83,15 +83,15 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             shape = [10 10];
             chunks = [5 5];
             
-            % Test v2 format
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '.');
+            % Test with dot separator
+            grid = zarr.core.ChunkGrid(shape, chunks, '.');
             key = grid.coords_to_key([1 1], '');
             testCase.verifyEqual(key, '/1.1');
             
-            % Test v3 format
-            grid = zarr.core.ChunkGrid(shape, chunks, 3, '/');
+            % Test with slash separator
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             key = grid.coords_to_key([1 1], '');
-            testCase.verifyEqual(key, '/c/1/1');
+            testCase.verifyEqual(key, '/1/1');
         end
         
         function test_key_to_coords(testCase)
@@ -99,14 +99,14 @@ classdef test_chunk_grid < matlab.unittest.TestCase
             shape = [10 10];
             chunks = [5 5];
             
-            % Test v2 format
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '.');
+            % Test with dot separator
+            grid = zarr.core.ChunkGrid(shape, chunks, '.');
             coords = grid.key_to_coords('/1.1', '');
             testCase.verifyEqual(coords, [1 1]);
             
-            % Test v3 format
-            grid = zarr.core.ChunkGrid(shape, chunks, 3, '/');
-            coords = grid.key_to_coords('/c/1/1', '');
+            % Test with slash separator
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
+            coords = grid.key_to_coords('/1/1', '');
             testCase.verifyEqual(coords, [1 1]);
         end
     end

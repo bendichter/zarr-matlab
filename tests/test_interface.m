@@ -12,7 +12,6 @@ function test_create_basic(testCase)
     % Verify basic properties
     testCase.verifyEqual(z.shape, [10 10]);
     testCase.verifyEqual(z.dtype, 'double');
-    testCase.verifyEqual(z.zarr_format, 3);  % default format
     
     % Write and read data
     data = rand(10);
@@ -46,7 +45,6 @@ function test_create_with_options(testCase)
         'fill_value', 0, ...
         'order', 'F', ...
         'dimension_separator', '.', ...
-        'zarr_format', 2, ...
         'attributes', struct('description', 'test array'));
     
     % Verify options were applied
@@ -54,7 +52,6 @@ function test_create_with_options(testCase)
     testCase.verifyEqual(z.fill_value, 0);
     testCase.verifyEqual(z.order, 'F');
     testCase.verifyEqual(z.dimension_separator, '.');
-    testCase.verifyEqual(z.zarr_format, 2);
     testCase.verifyEqual(z.attrs.description, 'test array');
 end
 
@@ -66,7 +63,6 @@ function test_group_basic(testCase)
     
     % Verify basic properties
     testCase.verifyEqual(g.path, '');
-    testCase.verifyEqual(g.zarr_format, 3);
     testCase.verifyFalse(g.read_only);
 end
 
@@ -92,12 +88,10 @@ function test_group_with_options(testCase)
     % Create group with all options specified
     g = zarr.group(...
         'path', 'subgroup', ...
-        'zarr_format', 2, ...
         'attributes', struct('description', 'test group'));
     
     % Verify options were applied
     testCase.verifyEqual(g.path, 'subgroup');
-    testCase.verifyEqual(g.zarr_format, 2);
     testCase.verifyEqual(g.attrs.description, 'test group');
 end
 

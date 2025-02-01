@@ -49,10 +49,6 @@ function test_group_arrays(testCase)
     testCase.verifyTrue(group.contains('data2'));
     
     % Print metadata for debugging
-    if store.contains('data1/zarr.json')
-        disp('data1/zarr.json:');
-        disp(char(store.get('data1/zarr.json')));
-    end
     if store.contains('data1/.zarray')
         disp('data1/.zarray:');
         disp(char(store.get('data1/.zarray')));
@@ -91,10 +87,6 @@ function test_nested_groups(testCase)
     array3(:,:) = 3*data;
     
     % Print metadata for debugging
-    if store.contains('group1/data2/zarr.json')
-        disp('group1/data2/zarr.json:');
-        disp(char(store.get('group1/data2/zarr.json')));
-    end
     if store.contains('group1/data2/.zarray')
         disp('group1/data2/.zarray:');
         disp(char(store.get('group1/data2/.zarray')));
@@ -192,30 +184,4 @@ function test_group_errors(testCase)
     % Test accessing non-existent item
     testCase.verifyError(@() group.nonexistent, ...
         'zarr:KeyError');
-end
-
-function test_group_formats(testCase)
-    % Test group creation with different Zarr formats
-    
-    % Create temporary directory for testing
-    temp_dir = tempname;
-    mkdir(temp_dir);
-    cleanup = onCleanup(@() rmdir(temp_dir, 's'));
-    
-    % Create store
-    store = zarr.storage.FileStore(temp_dir);
-    
-    % Test v2 format
-    group_v2 = zarr.core.Group(store, 'v2', 'zarr_format', 2);
-    testCase.verifyEqual(group_v2.zarr_format, 2);
-    
-    % Test v3 format
-    group_v3 = zarr.core.Group(store, 'v3', 'zarr_format', 3);
-    testCase.verifyEqual(group_v3.zarr_format, 3);
-    
-    % Verify format compatibility
-    array_v2 = group_v2.create_array('data', [5 5], 'double');
-    array_v3 = group_v3.create_array('data', [5 5], 'double');
-    testCase.verifyEqual(array_v2.zarr_format, 2);
-    testCase.verifyEqual(array_v3.zarr_format, 3);
 end

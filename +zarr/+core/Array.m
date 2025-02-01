@@ -1,7 +1,7 @@
 classdef Array < handle
     % ARRAY N-dimensional array stored in chunked, compressed format
-    %   Array provides the core functionality for Zarr arrays, supporting chunked
-    %   storage, compression, and both v2 and v3 metadata formats.
+    %   Array provides the core functionality for Zarr v2 arrays, supporting chunked
+    %   storage and compression.
     
     properties (SetAccess = private)
         shape           % Array shape (size in each dimension)
@@ -15,7 +15,6 @@ classdef Array < handle
         order          % Memory layout ('C' or 'F')
         filters        % List of filters
         dimension_separator  % Dimension separator for chunk keys
-        zarr_format    % Zarr format version (2 or 3)
     end
     
     properties (SetAccess = private)
@@ -52,8 +51,6 @@ classdef Array < handle
             %         List of filters
             %     'dimension_separator': char
             %         Separator for chunk keys ('.' or '/', default: '/')
-            %     'zarr_format': numeric
-            %         Zarr format version (2 or 3, default: 3)
             %     'attributes': struct
             %         Initial attributes for the array
             
@@ -69,7 +66,6 @@ classdef Array < handle
             p.addParameter('order', 'C', @(x) ismember(x, {'C', 'F'}));
             p.addParameter('filters', cell(0), @iscell);
             p.addParameter('dimension_separator', '/', @(x) ismember(x, {'.', '/'}));
-            p.addParameter('zarr_format', 3, @(x) ismember(x, [2, 3]));
             p.addParameter('attributes', struct(), @isstruct);
             
             p.parse(store, path, shape, dtype, varargin{:});
@@ -94,15 +90,13 @@ classdef Array < handle
             obj.order = p.Results.order;
             obj.filters = p.Results.filters;
             obj.dimension_separator = p.Results.dimension_separator;
-            obj.zarr_format = p.Results.zarr_format;
             
             % Initialize helper objects
-            obj.metadata = zarr.core.ArrayMetadata(obj.zarr_format, obj.shape, ...
+            obj.metadata = zarr.core.ArrayMetadata(obj.shape, ...
                 obj.chunks, obj.dtype, obj.compressor, obj.fill_value, ...
                 obj.order, obj.filters, obj.dimension_separator);
             
-            obj.grid = zarr.core.ChunkGrid(obj.shape, obj.chunks, ...
-                obj.zarr_format, obj.dimension_separator);
+            obj.grid = zarr.core.ChunkGrid(obj.shape, obj.chunks, obj.dimension_separator);
             
             obj.pipeline = zarr.core.CodecPipeline(obj.compressor, obj.filters);
             
@@ -120,7 +114,7 @@ classdef Array < handle
             end
             
             % Initialize attributes
-            obj.attrs = zarr.core.Attributes(store, path, obj.zarr_format);
+            obj.attrs = zarr.core.Attributes(store, path);
             
             % Set initial attributes if provided
             if ~isempty(fieldnames(p.Results.attributes))
@@ -148,7 +142,6 @@ classdef Array < handle
         
         function chunks = guess_chunks(obj)
             % Guess an appropriate chunk shape based on array shape and type
-            % This is a simple implementation - could be made more sophisticated
             target_bytes = 1024 * 1024;  % Target 1MB chunks
             elem_size = obj.get_dtype_size();
             
@@ -255,7 +248,6 @@ classdef Array < handle
             fprintf('  dtype: %s\n', obj.dtype);
             fprintf('  compressor: %s\n', char(obj.compressor));
             fprintf('  order: %s\n', obj.order);
-            fprintf('  format: v%d\n', obj.zarr_format);
         end
         
         function s = size(obj, dim)
@@ -369,7 +361,7 @@ classdef Array < handle
             end
         end
         
-        function obj = from_metadata(store, path, zarr_format)
+        function obj = from_metadata(store, path, ~)
             % Create array from existing metadata
             %
             % Parameters:
@@ -377,15 +369,9 @@ classdef Array < handle
             %       Storage backend
             %   path: string
             %       Path within store
-            %   zarr_format: numeric
-            %       Zarr format version (2 or 3)
             
             % Read metadata
-            if zarr_format == 2
-                meta_path = [path '/.zarray'];
-            else
-                meta_path = [path '/zarr.json'];
-            end
+            meta_path = [path '/.zarray'];
             
             if ~store.contains(meta_path)
                 error('zarr:InvalidMetadata', 'No metadata found at path: %s', path);
@@ -398,93 +384,46 @@ classdef Array < handle
             shape = []; chunks = []; dtype = []; compressor = [];
             fill_value = 0; order = 'C'; filters = cell(0); dimension_separator = '/';
             
-            % Handle v2 format
-            if zarr_format == 2
-                if ~isfield(metadata, 'shape') || ~isfield(metadata, 'chunks') || ...
-                   ~isfield(metadata, 'dtype')
-                    error('zarr:InvalidMetadata', 'Missing required fields in v2 metadata');
+            % Parse metadata
+            shape = []; chunks = []; dtype = []; compressor = [];
+            fill_value = 0; order = 'C'; filters = cell(0); dimension_separator = '/';
+            
+            % Parse metadata
+            if ~isfield(metadata, 'shape') || ~isfield(metadata, 'chunks') || ...
+               ~isfield(metadata, 'dtype')
+                error('zarr:InvalidMetadata', 'Missing required fields in metadata');
+            end
+
+            shape = double(metadata.shape(:)');  % Ensure row vector
+            chunks = double(metadata.chunks(:)');  % Ensure row vector
+            dtype = zarr.core.Array.parse_dtype(metadata.dtype);
+
+            if isfield(metadata, 'compressor') && ~isempty(metadata.compressor)
+                if strcmp(metadata.compressor.id, 'blosc')
+                    compressor = zarr.codecs.BloscCodec(...
+                        'cname', metadata.compressor.cname, ...
+                        'clevel', metadata.compressor.clevel, ...
+                        'shuffle', metadata.compressor.shuffle);
+                elseif strcmp(metadata.compressor.id, 'gzip')
+                    compressor = zarr.codecs.GzipCodec(metadata.compressor.level);
+                elseif strcmp(metadata.compressor.id, 'zstd')
+                    compressor = zarr.codecs.ZstdCodec(metadata.compressor.level);
                 end
-                
-                shape = double(metadata.shape(:)');  % Ensure row vector
-                chunks = double(metadata.chunks(:)');  % Ensure row vector
-                dtype = zarr.core.Array.parse_dtype(metadata.dtype);
-                
-                if isfield(metadata, 'compressor') && ~isempty(metadata.compressor)
-                    if strcmp(metadata.compressor.id, 'blosc')
-                        compressor = zarr.codecs.BloscCodec(...
-                            'cname', metadata.compressor.cname, ...
-                            'clevel', metadata.compressor.clevel, ...
-                            'shuffle', metadata.compressor.shuffle);
-                    elseif strcmp(metadata.compressor.id, 'gzip')
-                        compressor = zarr.codecs.GzipCodec(metadata.compressor.level);
-                    elseif strcmp(metadata.compressor.id, 'zstd')
-                        compressor = zarr.codecs.ZstdCodec(metadata.compressor.level);
-                    end
+            end
+
+            if isfield(metadata, 'fill_value')
+                fill_value = metadata.fill_value;
+            end
+            if isfield(metadata, 'order')
+                order = metadata.order;
+            end
+            if isfield(metadata, 'filters')
+                if iscell(metadata.filters)
+                    filters = metadata.filters;
                 end
-                
-                if isfield(metadata, 'fill_value')
-                    fill_value = metadata.fill_value;
-                end
-                if isfield(metadata, 'order')
-                    order = metadata.order;
-                end
-                if isfield(metadata, 'filters')
-                    if iscell(metadata.filters)
-                        filters = metadata.filters;
-                    end
-                end
-                if isfield(metadata, 'dimension_separator')
-                    dimension_separator = metadata.dimension_separator;
-                end
-            else
-                % Handle v3 format
-                required_fields = {'shape', 'chunk_grid', 'data_type', 'node_type', 'attributes', 'extensions'};
-                for i = 1:numel(required_fields)
-                    if ~isfield(metadata, required_fields{i})
-                        error('zarr:InvalidMetadata', 'Missing required field in v3 metadata: %s', required_fields{i});
-                    end
-                end
-                if ~isfield(metadata.chunk_grid, 'configuration') || ...
-                   ~isfield(metadata.chunk_grid.configuration, 'chunk_shape')
-                    error('zarr:InvalidMetadata', 'Missing chunk_grid configuration in v3 metadata');
-                end
-                
-                shape = double(metadata.shape(:)');  % Ensure row vector
-                chunks = double(metadata.chunk_grid.configuration.chunk_shape(:)');  % Ensure row vector
-                
-                % Handle different dtype field names
-                if isfield(metadata, 'data_type')
-                    dtype = zarr.core.Array.parse_dtype(metadata.data_type);
-                elseif isfield(metadata, 'dtype')
-                    dtype = zarr.core.Array.parse_dtype(metadata.dtype);
-                else
-                    error('zarr:InvalidMetadata', 'Missing data type in metadata');
-                end
-                
-                % Find compressor in codecs
-                if isfield(metadata, 'codecs')
-                    for i = 1:numel(metadata.codecs)
-                        codec = metadata.codecs(i);
-                        if strcmp(codec.name, 'blosc')
-                            compressor = zarr.codecs.BloscCodec(...
-                                'cname', codec.cname, ...
-                                'clevel', codec.clevel, ...
-                                'shuffle', codec.shuffle);
-                            break;
-                        elseif strcmp(codec.name, 'gzip')
-                            compressor = zarr.codecs.GzipCodec(codec.level);
-                            break;
-                        elseif strcmp(codec.name, 'zstd')
-                            compressor = zarr.codecs.ZstdCodec(codec.level);
-                            break;
-                        end
-                    end
-                end
-                
-                % Optional fields with defaults
-                if isfield(metadata, 'fill_value')
-                    fill_value = metadata.fill_value;
-                end
+            end
+            if isfield(metadata, 'dimension_separator')
+                dimension_separator = metadata.dimension_separator;
             end
             
             % Create array with extracted properties
@@ -494,8 +433,7 @@ classdef Array < handle
                 'fill_value', fill_value, ...
                 'order', order, ...
                 'filters', filters, ...
-                'dimension_separator', dimension_separator, ...
-                'zarr_format', zarr_format);
+                'dimension_separator', dimension_separator);
             
             % Set read-only flag if store is read-only
             if isa(store, 'zarr.storage.FileStore') && store.isreadonly()

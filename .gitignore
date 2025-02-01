@@ -30,6 +30,7 @@ build/
 *.gcda
 *.gcov
 lcov.info
+tests/data/
 
 # Dependencies
 numcodecs/

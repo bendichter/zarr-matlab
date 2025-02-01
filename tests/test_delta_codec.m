@@ -42,9 +42,13 @@ classdef test_delta_codec < matlab.unittest.TestCase
             pyfile = fullfile(fileparts(mfilename('fullpath')), 'data/delta/test_data.bin');
             
             % Read Python-generated encoded data
-            fid = fopen(pyfile, 'r');
-            encoded = fread(fid, 'int32');
-            fclose(fid);
+            fid = fopen(pyfile, 'rb');
+            if fid == -1
+                error('Failed to open test data file: %s', pyfile);
+            end
+            cleanup = onCleanup(@() fclose(fid));
+            
+            encoded = fread(fid, Inf, 'int32');
             
             codec = zarr.codecs.DeltaCodec('int32');
             decoded = codec.decode(encoded);

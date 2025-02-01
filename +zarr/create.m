@@ -22,25 +22,10 @@ function array = create(varargin)
 %         List of filters
 %     'dimension_separator': char
 %         Separator for chunk keys ('.' or '/', default: '/')
-%     'zarr_format': numeric
-%         Zarr format version (2 or 3, default: 3)
 %     'path': string
 %         Path within store (default: '')
 %     'attributes': struct
 %         User-defined attributes
-%
-%   Examples:
-%     % Create a 1000x1000 double array with default settings
-%     z = zarr.create([1000 1000], 'double');
-%
-%     % Create an array in a specific store with custom chunks
-%     store = zarr.storage.FileStore('data.zarr');
-%     z = zarr.create(store, [1000 1000], 'single', 'chunks', [100 100]);
-%
-%     % Create a compressed integer array with attributes
-%     z = zarr.create([100 100], 'int32', ...
-%         'compressor', zarr.codecs.BloscCodec('clevel', 5), ...
-%         'attributes', struct('description', 'My array'));
 
     % Parse input arguments
     [store, shape, dtype, params] = parse_args(varargin{:});
@@ -53,7 +38,6 @@ function array = create(varargin)
         'order', params.order, ...
         'filters', params.filters, ...
         'dimension_separator', params.dimension_separator, ...
-        'zarr_format', params.zarr_format, ...
         'attributes', params.attributes);
 end
 
@@ -81,7 +65,6 @@ function [store, shape, dtype, params] = parse_args(varargin)
     params.order = 'C';
     params.filters = {};
     params.dimension_separator = '/';
-    params.zarr_format = 3;
     params.path = '';
     params.attributes = struct();
     
@@ -113,8 +96,6 @@ function [store, shape, dtype, params] = parse_args(varargin)
                     params.filters = value;
                 case 'dimension_separator'
                     params.dimension_separator = value;
-                case 'zarr_format'
-                    params.zarr_format = value;
                 case 'path'
                     params.path = value;
                 case 'attributes'

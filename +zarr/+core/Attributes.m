@@ -1,17 +1,15 @@
 classdef Attributes < handle
     % ATTRIBUTES Zarr array and group attributes
-    %   Provides access to metadata attributes stored in .zattrs (v2) or
-    %   attributes.json (v3) files.
+    %   Provides access to metadata attributes stored in .zattrs files (Zarr v2).
     
     properties (Access = private)
         store       % Storage backend
         path        % Path within store
-        format      % Zarr format version (2 or 3)
         cache       % Cached attributes
     end
     
     methods
-        function obj = Attributes(store, path, format)
+        function obj = Attributes(store, path, ~)
             % Create new Attributes instance
             %
             % Parameters:
@@ -19,12 +17,9 @@ classdef Attributes < handle
             %       Storage backend
             %   path: string
             %       Path within store
-            %   format: numeric
-            %       Zarr format version (2 or 3)
             
             obj.store = store;
             obj.path = path;
-            obj.format = format;
             obj.cache = struct();
             
             % Load initial attributes
@@ -160,13 +155,7 @@ classdef Attributes < handle
     methods (Access = private)
         function read_attributes(obj)
             % Read attributes from store
-            
-            % Get attributes file path
-            if obj.format == 2
-                attrs_path = [obj.path '/.zattrs'];
-            else
-                attrs_path = [obj.path '/attributes.json'];
-            end
+            attrs_path = [obj.path '/.zattrs'];
             
             % Read and parse attributes
             if obj.store.contains(attrs_path)
@@ -180,18 +169,10 @@ classdef Attributes < handle
         
         function write_attributes(obj)
             % Write attributes to store
+            attrs_path = [obj.path '/.zattrs'];
             
-            % Convert to JSON
+            % Convert to JSON and write to store
             json_str = jsonencode(obj.cache);
-            
-            % Get attributes file path
-            if obj.format == 2
-                attrs_path = [obj.path '/.zattrs'];
-            else
-                attrs_path = [obj.path '/attributes.json'];
-            end
-            
-            % Write to store
             obj.store.set(attrs_path, uint8(json_str));
         end
     end

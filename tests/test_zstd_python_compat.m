@@ -23,20 +23,11 @@ function test_zstd_default_settings(testCase)
     array(:,:) = data;
     
     % Verify metadata format and content
-    if array.zarr_format == 2
-        meta_str = char(store.get('.zarray'));
-    else
-        meta_str = char(store.get('zarr.json'));
-    end
+    meta_str = char(store.get('.zarray'));
     meta = jsondecode(meta_str);
     
-    % Find Zstd codec in metadata
-    if array.zarr_format == 2
-        codec = meta.compressor;
-    else
-        codec_idx = find(strcmp({meta.codecs.name}, 'zstd'), 1);
-        codec = meta.codecs(codec_idx);
-    end
+    % Get codec from metadata
+    codec = meta.compressor;
     
     % Verify Zstd settings match Python defaults
     testCase.verifyEqual(codec.id, 'zstd');
@@ -74,20 +65,11 @@ function test_zstd_compression_levels(testCase)
         array(:,:) = data;
         
         % Verify metadata
-        if array.zarr_format == 2
-            meta_str = char(store.get('.zarray'));
-        else
-            meta_str = char(store.get('zarr.json'));
-        end
+        meta_str = char(store.get('.zarray'));
         meta = jsondecode(meta_str);
         
-        % Find Zstd codec in metadata
-        if array.zarr_format == 2
-            codec = meta.compressor;
-        else
-            codec_idx = find(strcmp({meta.codecs.name}, 'zstd'), 1);
-            codec = meta.codecs(codec_idx);
-        end
+        % Get codec from metadata
+        codec = meta.compressor;
         
         % Verify compression level
         testCase.verifyEqual(codec.level, level);
@@ -124,20 +106,11 @@ function test_zstd_checksum(testCase)
         array(:,:) = data;
         
         % Verify metadata
-        if array.zarr_format == 2
-            meta_str = char(store.get('.zarray'));
-        else
-            meta_str = char(store.get('zarr.json'));
-        end
+        meta_str = char(store.get('.zarray'));
         meta = jsondecode(meta_str);
         
-        % Find Zstd codec in metadata
-        if array.zarr_format == 2
-            codec = meta.compressor;
-        else
-            codec_idx = find(strcmp({meta.codecs.name}, 'zstd'), 1);
-            codec = meta.codecs(codec_idx);
-        end
+        % Get codec from metadata
+        codec = meta.compressor;
         
         % Verify checksum setting
         testCase.verifyEqual(codec.checksum, use_checksum);

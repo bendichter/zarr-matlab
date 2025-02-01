@@ -7,7 +7,7 @@ classdef test_indexer < matlab.unittest.TestCase
             shape = [10 10];
             chunks = [5 5];
             dtype = 'double';
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '/');
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             pipeline = zarr.core.CodecPipeline([], {});
             store = zarr.storage.FileStore('test_indexer');
             path = '';
@@ -41,7 +41,7 @@ classdef test_indexer < matlab.unittest.TestCase
             shape = [10 10];
             chunks = [5 5];
             dtype = 'double';
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '/');
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             pipeline = zarr.core.CodecPipeline([], {});
             store = zarr.storage.FileStore('test_indexer');
             path = '';
@@ -62,7 +62,7 @@ classdef test_indexer < matlab.unittest.TestCase
             % Test local index calculation
             shape = [10 10];
             chunks = [5 5];
-            grid = zarr.core.ChunkGrid(shape, chunks, 2, '/');
+            grid = zarr.core.ChunkGrid(shape, chunks, '/');
             
             % Test single point in first chunk
             global_indices = {1, 1};

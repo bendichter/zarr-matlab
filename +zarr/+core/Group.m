@@ -1,13 +1,11 @@
 classdef Group < handle
     % GROUP Hierarchical group of arrays and other groups
-    %   Group provides hierarchical organization in Zarr, similar to HDF5 groups.
-    %   It supports both v2 and v3 formats and allows for nested groups and arrays.
+    %   Group provides hierarchical organization in Zarr v2, similar to HDF5 groups.
     
     properties (SetAccess = private)
         store          % Storage backend
         path           % Path within store
         read_only      % Whether group is read-only
-        zarr_format   % Zarr format version (2 or 3)
     end
     
     properties (Access = private)
@@ -21,43 +19,19 @@ classdef Group < handle
     methods
         function attrs = get.attrs(obj)
             % Get group attributes
-            if obj.zarr_format == 2
-                % For v2, check .zattrs file
-                if obj.store.contains([obj.path '/.zattrs'])
-                    json_bytes = obj.store.get([obj.path '/.zattrs']);
-                    if isempty(json_bytes)
-                        attrs = struct();
-                    else
-                        attrs = jsondecode(char(json_bytes));
-                        % Preserve cell array orientation for tags
-                        if isfield(attrs, 'tags') && iscell(attrs.tags)
-                            attrs.tags = reshape(attrs.tags, 1, []);
-                        end
-                    end
-                else
+            if obj.store.contains([obj.path '/.zattrs'])
+                json_bytes = obj.store.get([obj.path '/.zattrs']);
+                if isempty(json_bytes)
                     attrs = struct();
+                else
+                    attrs = jsondecode(char(json_bytes));
+                    % Preserve cell array orientation for tags
+                    if isfield(attrs, 'tags') && iscell(attrs.tags)
+                        attrs.tags = reshape(attrs.tags, 1, []);
+                    end
                 end
             else
-                % For v3, attributes are in zarr.json
-                if obj.store.contains([obj.path '/zarr.json'])
-                    json_bytes = obj.store.get([obj.path '/zarr.json']);
-                    if isempty(json_bytes)
-                        attrs = struct();
-                    else
-                        metadata = jsondecode(char(json_bytes));
-                        if isfield(metadata, 'attributes')
-                            attrs = metadata.attributes;
-                            % Preserve cell array orientation for tags
-                            if isfield(attrs, 'tags') && iscell(attrs.tags)
-                                attrs.tags = reshape(attrs.tags, 1, []);
-                            end
-                        else
-                            attrs = struct();
-                        end
-                    end
-                else
-                    attrs = struct();
-                end
+                attrs = struct();
             end
         end
         
@@ -70,8 +44,6 @@ classdef Group < handle
             %   path: string
             %       Path within store
             %   Optional parameters (name-value pairs):
-            %     'zarr_format': numeric
-            %         Zarr format version (2 or 3, default: 3)
             %     'attributes': struct
             %         Group attributes
             
@@ -79,7 +51,6 @@ classdef Group < handle
             p = inputParser;
             p.addRequired('store', @(x) isa(x, 'zarr.core.Store'));
             p.addRequired('path', @ischar);
-            p.addParameter('zarr_format', 3, @(x) ismember(x, [2, 3]));
             p.addParameter('attributes', struct(), @isstruct);
             
             p.parse(store, path, varargin{:});
@@ -87,7 +58,6 @@ classdef Group < handle
             % Store properties
             obj.store = p.Results.store;
             obj.path = p.Results.path;
-            obj.zarr_format = p.Results.zarr_format;
             obj.read_only = obj.store.isreadonly();
             
             % Initialize attributes store
@@ -102,21 +72,10 @@ classdef Group < handle
         
         function init_group(obj)
             % Initialize group metadata and storage
-            
-            % Create metadata based on format version
-            if obj.zarr_format == 2
-                obj.init_v2();
-            else
-                obj.init_v3();
-            end
-        end
-        
-        function init_v2(obj)
-            % Initialize group with v2 format
             if ~obj.store.contains([obj.path '/.zgroup'])
                 % Create .zgroup metadata file
                 metadata = struct();
-                metadata.zarr_format = 2;
+                metadata.zarr_format = 2;  % Write v2 format metadata
                 
                 % Store metadata
                 obj.store.set([obj.path '/.zgroup'], uint8(jsonencode(metadata)));
@@ -125,22 +84,6 @@ classdef Group < handle
                 if ~isempty(fieldnames(obj.attrs_store))
                     obj.store.set([obj.path '/.zattrs'], uint8(jsonencode(obj.attrs_store)));
                 end
-            end
-        end
-        
-        function init_v3(obj)
-            % Initialize group with v3 format
-            if ~obj.store.contains([obj.path '/zarr.json'])
-                % Create zarr.json metadata file
-                metadata = struct(...
-                    'zarr_format', 3, ...
-                    'node_type', 'group', ...
-                    'attributes', obj.attrs_store, ...
-                    'codecs', {{}}, ...  % Empty codecs list for v3 groups
-                    'data_type', '<f8');  % Required field for v3 metadata
-                
-                % Store metadata
-                obj.store.set([obj.path '/zarr.json'], uint8(jsonencode(metadata)));
             end
         end
         
@@ -175,8 +118,7 @@ classdef Group < handle
             array_path = fullfile(obj.path, name);
             
             % Create array
-            array = zarr.core.Array(obj.store, array_path, shape, dtype, ...
-                'zarr_format', obj.zarr_format, varargin{:});
+            array = zarr.core.Array(obj.store, array_path, shape, dtype, varargin{:});
         end
         
         function group = create_group(obj, name, varargin)
@@ -206,8 +148,7 @@ classdef Group < handle
             group_path = fullfile(obj.path, name);
             
             % Create group
-            group = zarr.core.Group(obj.store, group_path, ...
-                'zarr_format', obj.zarr_format, varargin{:});
+            group = zarr.core.Group(obj.store, group_path, varargin{:});
         end
         
         function tf = contains(obj, name)
@@ -225,8 +166,7 @@ classdef Group < handle
             full_path = fullfile(obj.path, name);
             
             % Check if path exists in store
-            tf = obj.store.contains([full_path '/zarr.json']) || ...
-                 obj.store.contains([full_path '/.zarray']) || ...
+            tf = obj.store.contains([full_path '/.zarray']) || ...
                  obj.store.contains([full_path '/.zgroup']);
         end
         
@@ -254,9 +194,8 @@ classdef Group < handle
                 [path, name] = fileparts(keys{i});
                 if isempty(path) || strcmp(path, obj.path)
                     % Root-level item
-                    if ~strcmp(name, '.zgroup') && ~strcmp(name, '.zattrs') && ~strcmp(name, 'attributes.json')
+                    if ~strcmp(name, '.zgroup') && ~strcmp(name, '.zattrs')
                         base_name = strrep(name, '.zarray', '');
-                        base_name = strrep(base_name, 'zarr.json', '');
                         if ~isempty(base_name) && ~seen_paths.isKey(base_name)
                             paths{end+1} = base_name;
                             seen_paths(base_name) = true;
@@ -281,20 +220,7 @@ classdef Group < handle
                 path = paths{i};
                 full_path = fullfile(obj.path, path);
                 
-                if obj.store.contains([full_path '/zarr.json'])
-                    % For v3, check node_type
-                    json_bytes = obj.store.get([full_path '/zarr.json']);
-                    metadata = jsondecode(char(json_bytes));
-                    if isfield(metadata, 'node_type')
-                        if strcmp(metadata.node_type, 'array')
-                            items(end+1).name = path;
-                            items(end).type = 'array';
-                        elseif strcmp(metadata.node_type, 'group')
-                            items(end+1).name = path;
-                            items(end).type = 'group';
-                        end
-                    end
-                elseif obj.store.contains([full_path '/.zarray'])
+                if obj.store.contains([full_path '/.zarray'])
                     items(end+1).name = path;
                     items(end).type = 'array';
                 elseif obj.store.contains([full_path '/.zgroup'])
@@ -353,44 +279,8 @@ classdef Group < handle
             % Build full path
             full_path = fullfile(obj.path, name);
             
-            % Check if it's a v3 item
-            if obj.store.contains([full_path '/zarr.json'])
-                json_bytes = obj.store.get([full_path '/zarr.json']);
-                if isempty(json_bytes)
-                    error('zarr:InvalidMetadata', 'Empty metadata file');
-                end
-                try
-                    metadata = jsondecode(char(json_bytes));
-                    if ~isfield(metadata, 'node_type')
-                        error('zarr:InvalidMetadata', 'Missing node_type in metadata');
-                    end
-                    
-                    if strcmp(metadata.node_type, 'array')
-                        if ~isfield(metadata, 'shape')
-                            error('zarr:InvalidMetadata', 'Missing shape in metadata');
-                        end
-                        shape = metadata.shape;
-                        if isfield(metadata, 'data_type')
-                            dtype = metadata.data_type;
-                        elseif isfield(metadata, 'dtype')
-                            dtype = metadata.dtype;
-                        else
-                            error('zarr:InvalidMetadata', 'Missing data type in metadata');
-                        end
-                        item = zarr.core.Array(obj.store, full_path, shape, dtype, ...
-                            'zarr_format', obj.zarr_format);
-                    elseif strcmp(metadata.node_type, 'group')
-                        item = zarr.core.Group(obj.store, full_path, ...
-                            'zarr_format', obj.zarr_format);
-                    else
-                        error('zarr:InvalidMetadata', 'Invalid node_type: %s', metadata.node_type);
-                    end
-                catch ME
-                    error('zarr:InvalidMetadata', 'Failed to parse metadata: %s\nContent: %s', ...
-                        ME.message, char(json_bytes));
-                end
-            % Check if it's a v2 array
-            elseif obj.store.contains([full_path '/.zarray'])
+            % Check if it's an array
+            if obj.store.contains([full_path '/.zarray'])
                 json_bytes = obj.store.get([full_path '/.zarray']);
                 if isempty(json_bytes)
                     error('zarr:InvalidMetadata', 'Empty metadata file');
@@ -406,16 +296,14 @@ classdef Group < handle
                     else
                         error('zarr:InvalidMetadata', 'Missing data type in metadata');
                     end
-                    item = zarr.core.Array(obj.store, full_path, shape, dtype, ...
-                        'zarr_format', obj.zarr_format);
+                    item = zarr.core.Array(obj.store, full_path, shape, dtype);
                 catch ME
                     error('zarr:InvalidMetadata', 'Failed to parse metadata: %s\nContent: %s', ...
                         ME.message, char(json_bytes));
                 end
-            % Check if it's a v2 group
+            % Check if it's a group
             elseif obj.store.contains([full_path '/.zgroup'])
-                item = zarr.core.Group(obj.store, full_path, ...
-                    'zarr_format', obj.zarr_format);
+                item = zarr.core.Group(obj.store, full_path);
             else
                 error('zarr:KeyError', ...
                     'No item named ''%s'' in group', name);

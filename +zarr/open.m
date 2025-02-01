@@ -8,8 +8,6 @@ function obj = open(store, varargin)
 %   Parameters:
 %     'path': string
 %         Path within store (default: '')
-%     'zarr_format': numeric
-%         Zarr format version (2 or 3, default: 3)
 %     'mode': char
 %         Storage mode ('r' or 'r+', default: 'r+')
 %
@@ -25,21 +23,19 @@ function obj = open(store, varargin)
 %     % Open a specific array with read-only access
 %     array = zarr.open(store, 'path', 'data/array1', 'mode', 'r');
 %
-%     % Open a group with specific format version
-%     group = zarr.open(store, 'path', 'group1', 'zarr_format', 2);
+%     % Open a group
+%     group = zarr.open(store, 'path', 'group1');
 
     % Parse input arguments
     p = inputParser;
     p.addRequired('store', @(x) isa(x, 'zarr.core.Store'));
     p.addParameter('path', '', @ischar);
-    p.addParameter('zarr_format', 3, @(x) ismember(x, [2, 3]));
     p.addParameter('mode', 'r+', @check_mode);
     
     p.parse(store, varargin{:});
     
     % Extract parameters
     path = p.Results.path;
-    zarr_format = p.Results.zarr_format;
     mode = p.Results.mode;
     
     % Create read-only store if requested
@@ -53,38 +49,19 @@ function obj = open(store, varargin)
     end
     
     % Check if path exists
-    if ~store.contains([path '/zarr.json']) && ...
-       ~store.contains([path '/.zarray']) && ...
+    if ~store.contains([path '/.zarray']) && ...
        ~store.contains([path '/.zgroup'])
         error('zarr:PathNotFound', ...
             'No array or group found at path: %s', path);
     end
     
     % Determine if path points to array or group
-    if zarr_format == 2
-        if store.contains([path '/.zarray'])
-            % Path points to v2 array
-            obj = zarr.core.Array.from_metadata(store, path, zarr_format);
-        else
-            % Path points to v2 group
-            obj = zarr.core.Group(store, path, 'zarr_format', zarr_format);
-        end
+    if store.contains([path '/.zarray'])
+        % Path points to array
+        obj = zarr.core.Array.from_metadata(store, path);
     else
-        % For v3, check node_type in metadata
-        if store.contains([path '/zarr.json'])
-            json_bytes = store.get([path '/zarr.json']);
-            metadata = jsondecode(char(json_bytes));
-            if ~isfield(metadata, 'node_type')
-                error('zarr:InvalidMetadata', 'Missing node_type in v3 metadata');
-            end
-            if strcmp(metadata.node_type, 'array')
-                obj = zarr.core.Array.from_metadata(store, path, zarr_format);
-            else
-                obj = zarr.core.Group(store, path, 'zarr_format', zarr_format);
-            end
-        else
-            error('zarr:InvalidMetadata', 'No zarr.json found at path: %s', path);
-        end
+        % Path points to group
+        obj = zarr.core.Group(store, path);
     end
 end
 
