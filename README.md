@@ -111,7 +111,11 @@ transposition is needed (unlike MATLAB's `h5read`, which reverses dimensions).
 | numpy.datetime64 / timedelta64 | int64 ticks (exact; unit in metadata — MATLAB `datetime` is double-backed and would lose ns precision). Create with `"datetime64[ns]"` etc. |
 
 Rank mapping: rank-1 zarr arrays are MATLAB column vectors; rank-0 (scalar)
-arrays are read with `z()`. Chunks are stored C-order per the spec; pass
+arrays are read with `z()`.
+
+Known limitation: user attributes are exposed as MATLAB structs, so attribute
+*keys* that are not valid MATLAB identifiers (spaces, dashes, leading digits)
+are normalized by `jsondecode` on read. Attribute values are unaffected. Chunks are stored C-order per the spec; pass
 `Order="F"` to `zarr.create` to store column-major chunks (adds a spec-standard
 `transpose` codec — still fully readable by zarr-python — and makes MATLAB I/O
 copy-free).

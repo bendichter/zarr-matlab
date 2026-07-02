@@ -122,6 +122,50 @@ classdef Group < handle
             g = zarr.create_group(obj.store, Path=obj.childPath(name), ...
                 Attributes=opts.Attributes);
         end
+
+        function disp(obj)
+            fprintf('  zarr.Group  /%s   store: %s\n', obj.path, class(obj.store));
+            names = fieldnames(obj.meta.attributes);
+            if ~isempty(names)
+                fprintf('    attrs: %s\n', strjoin(string(names), ", "));
+            end
+            try
+                [an, gn] = obj.children();
+                for i = 1:numel(gn)
+                    fprintf('    %s/\n', gn(i));
+                end
+                for i = 1:numel(an)
+                    fprintf('    %s\n', an(i));
+                end
+            catch
+                fprintf('    (children unavailable: store is not listable)\n');
+            end
+        end
+
+        function tree(obj, maxDepth)
+            %TREE Print the hierarchy below this group.
+            if nargin < 2, maxDepth = Inf; end
+            fprintf('/%s\n', obj.path);
+            obj.printTree("", 1, maxDepth);
+        end
+    end
+
+    methods (Access = private)
+        function printTree(obj, indent, depth, maxDepth)
+            [an, gn] = obj.children();
+            for i = 1:numel(an)
+                node = obj.item(an(i));
+                fprintf('%s|- %s  [%s] %s\n', indent, an(i), ...
+                    strjoin(string(node.shape), " "), node.dtype);
+            end
+            for i = 1:numel(gn)
+                fprintf('%s|- %s/\n', indent, gn(i));
+                if depth < maxDepth
+                    sub = obj.item(gn(i));
+                    sub.printTree(indent + "|  ", depth + 1, maxDepth);
+                end
+            end
+        end
     end
 
     methods (Access = private)

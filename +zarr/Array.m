@@ -223,6 +223,35 @@ classdef Array < handle & matlab.mixin.indexing.RedefinesParen
                 ind = prod(s(k:end));
             end
         end
+
+        function disp(obj)
+            if isempty(obj.meta.shape)
+                shapeStr = "scalar";
+            else
+                shapeStr = strjoin(string(obj.meta.shape), "x");
+            end
+            codecNames = cellfun(@(c) string(c.name), obj.meta.codecs);
+            fprintf('  zarr.Array  %s  %s\n', shapeStr, obj.meta.dataType);
+            fprintf('     path: /%s   store: %s\n', obj.path, class(obj.store));
+            sh = obj.pipeline.soleSharding();
+            if ~isempty(sh)
+                fprintf('    shard: [%s]   chunk: [%s]\n', ...
+                    strjoin(string(obj.meta.chunkShape), " "), ...
+                    strjoin(string(sh.chunkShape), " "));
+            elseif ~isempty(obj.meta.chunkShape)
+                fprintf('    chunk: [%s]\n', strjoin(string(obj.meta.chunkShape), " "));
+            end
+            fprintf('   codecs: %s\n', strjoin(codecNames, " -> "));
+            names = fieldnames(obj.meta.attributes);
+            if ~isempty(names)
+                fprintf('    attrs: %s\n', strjoin(string(names), ", "));
+            end
+            if ~isempty(obj.meta.dimensionNames)
+                dn = obj.meta.dimensionNames;
+                dn(ismissing(dn)) = "~";
+                fprintf('     dims: %s\n', strjoin(dn, ", "));
+            end
+        end
     end
 
     % ----------------------------------------------------------------------
