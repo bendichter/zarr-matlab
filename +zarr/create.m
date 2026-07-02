@@ -34,13 +34,23 @@ arguments
     opts.Attributes struct = struct()
     opts.DimensionNames string = string.empty
     opts.Order (1,1) string {mustBeMember(opts.Order, ["C", "F"])} = "C"
+    opts.ChunkKeyEncoding (1,1) string {mustBeMember(opts.ChunkKeyEncoding, ["default", "v2"])} = "default"
+    opts.WriteEmptyChunks (1,1) logical = false
     opts.Overwrite (1,1) logical = false
 end
 
 store = zarr.internal.resolve_store(store);
 path = zarr.internal.normalize_path(opts.Path);
-dataType = zarr.internal.normalize_dtype(dtype);
-info = zarr.internal.dtype_info(dataType);
+tok = regexp(char(dtype), '^(?:numpy\.)?(datetime64|timedelta64)\[(\w+)\]$', 'tokens', 'once');
+if ~isempty(tok)
+    dataType = "numpy." + tok{1};
+    dtypeConfig = struct('unit', tok{2}, 'scale_factor', 1);
+else
+    dataType = zarr.internal.normalize_dtype(dtype);
+    dtypeConfig = [];
+end
+info = zarr.internal.dtype_info(dataType, dtypeConfig);
+dtypeConfig = info.config;
 R = numel(shape);
 
 % Chunk shape
@@ -64,6 +74,8 @@ if isempty(opts.FillValue) && ~isstring(opts.FillValue)
         fillValue = "";
     elseif info.zarrType == "variable_length_bytes"
         fillValue = uint8.empty(1, 0);
+    elseif startsWith(info.zarrType, "numpy.")
+        fillValue = intmin('int64');  % NaT
     elseif info.isComplex
         fillValue = complex(cast(0, char(info.matlabClass)));
     else
@@ -113,6 +125,11 @@ end
 meta = zarr.metadata.ArrayMetadata();
 meta.shape = shape;
 meta.dataType = dataType;
+meta.dataTypeConfig = dtypeConfig;
+meta.keyEncoding = opts.ChunkKeyEncoding;
+if opts.ChunkKeyEncoding == "v2"
+    meta.keySeparator = ".";
+end
 meta.chunkShape = chunkShape;
 meta.fillValue = fillValue;
 meta.codecs = codecs;
@@ -137,4 +154,5 @@ end
 zarr.internal.ensure_parents(store, path);
 store.set(key, unicode2native(char(meta.toJsonText()), 'UTF-8'));
 z = zarr.Array(store, path, meta);
+z.writeEmptyChunks = opts.WriteEmptyChunks;
 end

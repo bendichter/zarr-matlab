@@ -4,6 +4,7 @@ classdef ArrayMetadata
     properties
         shape (1,:) double
         dataType (1,1) string
+        dataTypeConfig = []   % extension dtype configuration struct, or []
         chunkShape (1,:) double
         keyEncoding (1,1) string {mustBeMember(keyEncoding, ["default", "v2"])} = "default"
         keySeparator (1,1) string = "/"
@@ -28,7 +29,11 @@ classdef ArrayMetadata
 
             obj = zarr.metadata.ArrayMetadata();
             obj.shape = reshape(m.shape, 1, []);
-            obj.dataType = string(m.data_type);
+            if isstruct(m.data_type)  % extension dtype: {"name": ..., "configuration": ...}
+                obj.dataType = string(m.data_type.name);
+            else
+                obj.dataType = string(m.data_type);
+            end
 
             if ~strcmp(m.chunk_grid.name, 'regular')
                 error("zarr:UnsupportedFeature", ...
@@ -52,15 +57,17 @@ classdef ArrayMetadata
                 end
             end
 
-            info = zarr.internal.dtype_info(obj.dataType);
+            info = zarr.internal.dtype_info(m.data_type);
+            obj.dataTypeConfig = info.config;
             obj.fillValue = zarr.internal.decode_fill_value(m.fill_value, info);
-            if ismember(obj.dataType, ["int64", "uint64"]) && isnumeric(m.fill_value)
+            if (info.matlabClass == "int64" || info.matlabClass == "uint64") ...
+                    && ~info.isVlen && isnumeric(m.fill_value)
                 % jsondecode went through double and may have lost precision
                 % beyond 2^53; re-extract the raw token and parse exactly.
                 tok = regexp(char(txt), '"fill_value"\s*:\s*(-?\d+)', 'tokens', 'once');
                 if ~isempty(tok)
                     obj.fillValue = zarr.internal.parse_int64_token(tok{1}, ...
-                        obj.dataType == "int64");
+                        info.matlabClass == "int64");
                 end
             end
 
@@ -99,14 +106,19 @@ classdef ArrayMetadata
 
     methods
         function txt = toJsonText(obj)
-            info = zarr.internal.dtype_info(obj.dataType);
+            info = zarr.internal.dtype_info(obj.dataType, obj.dataTypeConfig);
             pipeline = zarr.codecs.Pipeline(obj.codecs, info, obj.chunkShape);
 
             parts = strings(0, 1);
             parts(end + 1) = """zarr_format"":3";
             parts(end + 1) = """node_type"":""array""";
             parts(end + 1) = """shape"":" + jsonIntList(obj.shape);
-            parts(end + 1) = """data_type"":""" + obj.dataType + """";
+            if isempty(obj.dataTypeConfig)
+                parts(end + 1) = """data_type"":""" + obj.dataType + """";
+            else
+                parts(end + 1) = """data_type"":{""name"":""" + obj.dataType + ...
+                    """,""configuration"":" + string(jsonencode(obj.dataTypeConfig)) + "}";
+            end
             parts(end + 1) = """chunk_grid"":{""name"":""regular"",""configuration"":{""chunk_shape"":" + ...
                 jsonIntList(obj.chunkShape) + "}}";
             parts(end + 1) = """chunk_key_encoding"":{""name"":""" + obj.keyEncoding + ...

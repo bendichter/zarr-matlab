@@ -83,13 +83,15 @@ classdef ShardingCodec < zarr.codecs.Codec
             obj.indexLen = zarr.codecs.ShardingCodec.indexByteLength(obj.indexCodecs, obj.nChunks);
         end
 
-        function bytes = encode(obj, A, ~, shardShape)
+        function bytes = encode(obj, A, info, shardShape)
             obj.assertBound();
-            R = numel(shardShape);
             total = prod(obj.nChunks);
             blobs = cell(1, total);
             offsets = zeros(total, 1, 'uint64');
             lens = zeros(total, 1, 'uint64');
+            sentinel = intmax('uint64');
+            fillChunk = zarr.internal.fill_array(obj.innerPipeline.fillValue, ...
+                zarr.internal.mshape(obj.chunkShape), info);
             if obj.indexLocation == "start"
                 pos = uint64(obj.indexLen);
             else
@@ -99,6 +101,13 @@ classdef ShardingCodec < zarr.codecs.Codec
                 coords = zarr.codecs.ShardingCodec.unravelC(t, obj.nChunks);
                 subs = subsFor(coords .* obj.chunkShape, obj.chunkShape);
                 chunk = reshape(A(subs{:}), zarr.internal.mshape(obj.chunkShape));
+                if isequaln(chunk, fillChunk)
+                    % All-fill inner chunks are not stored (missing-chunk sentinel).
+                    blobs{t + 1} = uint8.empty(1, 0);
+                    offsets(t + 1) = sentinel;
+                    lens(t + 1) = sentinel;
+                    continue
+                end
                 blob = obj.innerPipeline.encode(chunk);
                 blobs{t + 1} = blob;
                 offsets(t + 1) = pos;

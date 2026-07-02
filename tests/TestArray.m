@@ -80,7 +80,8 @@ classdef TestArray < matlab.unittest.TestCase
         end
 
         function dtypePreserved(tc)
-            for dt = ["int16", "uint64", "float32", "complex128", "bool", "float16"]
+            for dt = ["int16", "uint64", "float32", "complex128", "bool", ...
+                      "float16", "datetime64[ns]", "timedelta64[us]"]
                 z = zarr.create(tc.store, 5, dt, Path="dt_" + dt);
                 d = interop_pattern(5, dt);
                 z(:) = d;
@@ -155,6 +156,47 @@ classdef TestArray < matlab.unittest.TestCase
             zarr.create(tc.store, 4, "float64", Path="x");
             tc.verifyError(@() zarr.create(tc.store, 4, "float64", Path="x/child"), ...
                 "zarr:NodeExists");
+        end
+
+        function emptyChunksNotStored(tc)
+            % default matches zarr-python: all-fill chunks are elided
+            z = zarr.create(tc.store, [4 4], "float64", ChunkShape=[2 2], Path="e");
+            z(:, :) = zeros(4);
+            tc.verifyFalse(tc.store.exists("e/c/0/0"), 'all-fill chunk not written');
+            z(:, :) = ones(4);
+            tc.verifyTrue(tc.store.exists("e/c/0/0"));
+            z(1:2, 1:2) = zeros(2);
+            tc.verifyFalse(tc.store.exists("e/c/0/0"), 'overwrite-to-fill deletes');
+            tc.verifyEqual(z(1, 1), 0);
+
+            z2 = zarr.create(tc.store, [2 2], "float64", Path="keep", ...
+                WriteEmptyChunks=true);
+            z2(:, :) = zeros(2);
+            tc.verifyTrue(tc.store.exists("keep/c/0/0"), 'opt-in keeps empty chunks');
+
+            % all-fill inner chunks inside a shard get the missing sentinel
+            zs = zarr.create(tc.store, [4 4], "int32", Path="sh", ...
+                ChunkShape=[2 2], ShardShape=[4 4]);
+            d = int32(zeros(4)); d(1, 1) = 5;
+            zs(:, :) = d;
+            [bytes, ~] = tc.store.get("sh/c/0/0");
+            I = typecast(bytes(end - 67:end - 4), 'uint64');  % 4 chunks x 2 + crc
+            tc.verifyEqual(nnz(I == intmax('uint64')), 6, 'three inner chunks elided');
+            tc.verifyEqual(zs(:, :), d);
+        end
+
+        function deleteNode(tc)
+            zarr.create_group(tc.store);
+            z = zarr.create(tc.store, [4 4], "float64", Path="a/x", ChunkShape=[2 2]);
+            z(:, :) = magic(4);
+            zarr.create(tc.store, 3, "int8", Path="a/y");
+            zarr.delete_node(tc.store, "a/x");
+            tc.verifyError(@() zarr.open(tc.store, Path="a/x"), "zarr:NodeNotFound");
+            tc.verifyTrue(tc.store.exists("a/y/zarr.json"), 'sibling untouched');
+            tc.verifyFalse(any(startsWith(tc.store.list(), "a/x/")), 'chunks removed');
+            zarr.delete_node(tc.store, "a");
+            tc.verifyFalse(tc.store.exists("a/y/zarr.json"), 'recursive delete');
+            tc.verifyError(@() zarr.delete_node(tc.store, "a"), "zarr:NodeNotFound");
         end
 
         function localStoreReopen(tc)

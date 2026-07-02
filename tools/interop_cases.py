@@ -47,6 +47,10 @@ CASES = [
     ("str2d", "string", (5, 4), (2, 3), {"compressors": ["gzip5"]}),
     ("str_shard", "string", (6,), (2,), {"shards": (6,)}),
     ("vbytes", "bytes", (7,), (3,), {}),
+    # numpy extension dtypes (int64 ticks; NaT fill)
+    ("dt_ns", "datetime64[ns]", (6,), (3,), {}),
+    ("td_ms", "timedelta64[ms]", (5,), (2,), {"compressors": ["gzip5"]}),
+    ("dt_fill", "datetime64[s]", (4,), (2,), {"partial": (2,)}),
 ]
 
 
@@ -58,6 +62,8 @@ def pattern(shape, dtype):
     if dtype == "bytes":
         return np.array([bytes(range(int(x) % 5)) for x in base],
                         dtype=object).reshape(shape)
+    if dtype.startswith(("datetime64", "timedelta64")):
+        return base.astype(np.int64).astype(np.dtype(dtype)).reshape(shape)
     dt = np.dtype(dtype)
     if dt == np.bool_:
         v = (base % 2).astype(bool)

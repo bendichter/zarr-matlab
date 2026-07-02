@@ -127,6 +127,24 @@ classdef TestMetadata < matlab.unittest.TestCase
             tc.verifyEqual(string(gm2.attributes.b), "text");
         end
 
+        function datetimeDtypeRoundTrip(tc)
+            txt = ['{"zarr_format":3,"node_type":"array","shape":[4],' ...
+                '"data_type":{"name":"numpy.datetime64","configuration":' ...
+                '{"unit":"ns","scale_factor":1}},' ...
+                '"chunk_grid":{"name":"regular","configuration":{"chunk_shape":[2]}},' ...
+                '"chunk_key_encoding":{"name":"default"},' ...
+                '"fill_value":-9223372036854775808,' ...
+                '"codecs":[{"name":"bytes","configuration":{"endian":"little"}}]}'];
+            meta = zarr.metadata.ArrayMetadata.fromJsonText(txt);
+            tc.verifyEqual(meta.dataType, "numpy.datetime64");
+            tc.verifyEqual(string(meta.dataTypeConfig.unit), "ns");
+            tc.verifyEqual(meta.fillValue, intmin('int64'), 'NaT fill is exact');
+            m2 = tc.roundTrip(meta);
+            tc.verifyEqual(m2.dataType, "numpy.datetime64");
+            tc.verifyEqual(m2.fillValue, intmin('int64'));
+            tc.verifySubstring(char(meta.toJsonText()), '"name":"numpy.datetime64"');
+        end
+
         function chunkKeys(tc)
             meta = zarr.metadata.ArrayMetadata();
             meta.keyEncoding = "default";

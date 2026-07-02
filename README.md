@@ -108,6 +108,7 @@ transposition is needed (unlike MATLAB's `h5read`, which reverses dimensions).
 | float32 / float64 | single / double |
 | float16 | single (converted losslessly on read; `"float16"` on create) |
 | complex64 / complex128 | single / double complex |
+| numpy.datetime64 / timedelta64 | int64 ticks (exact; unit in metadata — MATLAB `datetime` is double-backed and would lose ns precision). Create with `"datetime64[ns]"` etc. |
 
 Rank mapping: rank-1 zarr arrays are MATLAB column vectors; rank-0 (scalar)
 arrays are read with `z()`. Chunks are stored C-order per the spec; pass
@@ -129,6 +130,9 @@ copy-free).
 | Codecs: `blosc` (all cnames/shuffles), `zstd` (MEX, `tools/build_mex.m`) | ✅ |
 | `sharding_indexed`: partial shard reads, nested shards, both index locations | ✅ |
 | Variable-length strings (`string`/`vlen-utf8`) and bytes (`vlen-bytes`) | ✅ |
+| `numpy.datetime64` / `timedelta64` (as exact int64 ticks) | ✅ |
+| Empty-chunk elision on write (zarr-python parity; `WriteEmptyChunks=true` to disable) | ✅ |
+| Node deletion (`zarr.delete_node`), v2 chunk-key encoding read + write | ✅ |
 | ZipStore (read + write), consolidated metadata (read + write) | ✅ |
 | HTTP(S) read-only store with ranged partial reads | ✅ |
 | Prebuilt MEX binaries (Linux/Windows/Apple Silicon, attached to releases) | ✅ |

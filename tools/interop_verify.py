@@ -28,7 +28,12 @@ def main(root):
             assert arr.dtype == np.dtype(dtype), (name, arr.dtype)
         expected = pattern(shape, dtype)
         if "partial" in spec:
-            fill = spec.get("fill_value", 0)
+            fill = spec.get("fill_value")
+            if fill is None:
+                if dtype.startswith(("datetime64", "timedelta64")):
+                    fill = np.array("NaT", dtype=dtype)[()]
+                else:
+                    fill = 0
             full = np.full(shape, fill, dtype=dtype)
             region = tuple(slice(0, p) for p in spec["partial"])
             full[region] = expected[region]

@@ -1,11 +1,19 @@
 function A = interop_pattern(shape, dtype)
 %INTEROP_PATTERN MATLAB mirror of tools/interop_cases.py pattern().
 
-info = zarr.internal.dtype_info(zarr.internal.normalize_dtype(dtype));
 n = prod(shape);  % prod([]) == 1 for rank 0
 base = mod(0:n - 1, 251);
+if contains(dtype, "datetime64") || contains(dtype, "timedelta64")
+    % numpy extension dtypes: exact int64 ticks in MATLAB
+    info = struct('zarrType', "int64_ticks", 'matlabClass', "int64", ...
+        'isComplex', false, 'isVlen', false);
+else
+    info = zarr.internal.dtype_info(zarr.internal.normalize_dtype(dtype));
+end
 cls = char(info.matlabClass);
-if info.zarrType == "string"
+if info.zarrType == "int64_ticks"
+    v = int64(base);
+elseif info.zarrType == "string"
     v = "s" + string(base);
 elseif info.zarrType == "variable_length_bytes"
     v = arrayfun(@(x) uint8(0:mod(x, 5) - 1), base, 'UniformOutput', false);

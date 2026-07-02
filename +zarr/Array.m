@@ -11,6 +11,13 @@ classdef Array < handle & matlab.mixin.indexing.RedefinesParen
         meta
     end
 
+    properties
+        % When false (default, matching zarr-python), chunks whose content is
+        % entirely the fill value are not stored (and are deleted on
+        % overwrite); readers see the fill value either way.
+        writeEmptyChunks (1,1) logical = false
+    end
+
     properties (Dependent)
         shape        % Zarr shape (row vector; [] for rank 0)
         dtype        % Zarr data_type string
@@ -29,7 +36,7 @@ classdef Array < handle & matlab.mixin.indexing.RedefinesParen
             obj.store = store;
             obj.path = zarr.internal.normalize_path(path);
             obj.meta = meta;
-            obj.info = zarr.internal.dtype_info(meta.dataType);
+            obj.info = zarr.internal.dtype_info(meta.dataType, meta.dataTypeConfig);
             obj.pipeline = zarr.codecs.Pipeline(meta.codecs, obj.info, ...
                 meta.chunkShape, meta.fillValue);
         end
@@ -123,7 +130,12 @@ classdef Array < handle & matlab.mixin.indexing.RedefinesParen
                     dstSubs = subsFor(p.inStart, p.inCount);
                     chunk(dstSubs{:}) = data(srcSubs{:});
                 end
-                obj.store.set(key, obj.pipeline.encode(chunk));
+                if ~obj.writeEmptyChunks && isequaln(chunk, ...
+                        zarr.internal.fill_array(obj.meta.fillValue, size(chunk), obj.info))
+                    obj.store.erase(key);
+                else
+                    obj.store.set(key, obj.pipeline.encode(chunk));
+                end
             end
         end
 
