@@ -1,0 +1,39 @@
+name: Static compression libraries
+description: Build (or restore from cache) static zstd and c-blosc into ./native
+
+inputs:
+  zstd-tag:
+    description: zstd git tag
+    default: v1.5.7
+  blosc-tag:
+    description: c-blosc git tag
+    default: v1.21.6
+
+runs:
+  using: composite
+  steps:
+    - name: Cache static libraries
+      id: libcache
+      uses: actions/cache@v4
+      with:
+        path: native
+        key: native-${{ runner.os }}-${{ runner.arch }}-${{ inputs.zstd-tag }}-${{ inputs.blosc-tag }}-v2
+
+    - name: Build static zstd and c-blosc
+      if: steps.libcache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        git clone --depth 1 --branch "${{ inputs.zstd-tag }}" https://github.com/facebook/zstd.git ../zstd-src
+        cmake -S ../zstd-src/build/cmake -B ../zstd-build -DCMAKE_BUILD_TYPE=Release \
+          -DZSTD_BUILD_SHARED=OFF -DZSTD_BUILD_PROGRAMS=OFF \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$PWD/native"
+        cmake --build ../zstd-build --config Release -j4
+        cmake --install ../zstd-build --config Release
+        git clone --depth 1 --branch "${{ inputs.blosc-tag }}" https://github.com/Blosc/c-blosc.git ../blosc-src
+        cmake -S ../blosc-src -B ../blosc-build -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED=OFF -DBUILD_STATIC=ON -DBUILD_TESTS=OFF \
+          -DBUILD_BENCHMARKS=OFF -DBUILD_FUZZERS=OFF -DDEACTIVATE_SNAPPY=ON \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$PWD/native"
+        cmake --build ../blosc-build --config Release -j4
+        cmake --install ../blosc-build --config Release

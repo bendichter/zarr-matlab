@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: MATLAB ${{ matrix.release }} on ${{ matrix.os }}
@@ -13,13 +17,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        release: [latest]
+        include:
+          - os: ubuntu-latest
+            release: latest
+          - os: ubuntu-latest
+            release: R2022b     # oldest supported release
+          - os: windows-latest
+            release: latest
+          - os: macos-latest
+            release: latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install compression libraries
-        run: sudo apt-get update && sudo apt-get install -y libzstd-dev libblosc-dev
+      - uses: ./.github/actions/native-libs
 
       - name: Set up Python with zarr
         uses: actions/setup-python@v5
@@ -42,7 +52,10 @@ jobs:
       - name: Build MEX codecs
         uses: matlab-actions/run-command@v2
         with:
-          command: cd(getenv('GITHUB_WORKSPACE')); addpath(fullfile(pwd, 'tools')); build_mex
+          command: >-
+            cd(getenv('GITHUB_WORKSPACE'));
+            setenv('ZARR_MATLAB_LIBS', fullfile(pwd, 'native'));
+            addpath(fullfile(pwd, 'tools')); build_mex
 
       - name: Run test suite
         uses: matlab-actions/run-command@v2

@@ -10,10 +10,6 @@ on:
   push:
     tags: ["v*"]
 
-env:
-  ZSTD_TAG: v1.5.7
-  BLOSC_TAG: v1.21.6
-
 jobs:
   build:
     name: ${{ matrix.platform }}
@@ -31,31 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache static libraries
-        id: libcache
-        uses: actions/cache@v4
-        with:
-          path: native
-          key: native-${{ matrix.platform }}-${{ env.ZSTD_TAG }}-${{ env.BLOSC_TAG }}-v1
-
-      - name: Build static zstd and c-blosc
-        if: steps.libcache.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          git clone --depth 1 --branch "$ZSTD_TAG" https://github.com/facebook/zstd.git
-          cmake -S zstd/build/cmake -B zstd-build -DCMAKE_BUILD_TYPE=Release \
-            -DZSTD_BUILD_SHARED=OFF -DZSTD_BUILD_PROGRAMS=OFF \
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$PWD/native"
-          cmake --build zstd-build --config Release -j4
-          cmake --install zstd-build --config Release
-          git clone --depth 1 --branch "$BLOSC_TAG" https://github.com/Blosc/c-blosc.git
-          cmake -S c-blosc -B blosc-build -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED=OFF -DBUILD_STATIC=ON -DBUILD_TESTS=OFF \
-            -DBUILD_BENCHMARKS=OFF -DBUILD_FUZZERS=OFF -DDEACTIVATE_SNAPPY=ON \
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-            -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$PWD/native"
-          cmake --build blosc-build --config Release -j4
-          cmake --install blosc-build --config Release
+      - uses: ./.github/actions/native-libs
 
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
@@ -88,13 +60,26 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Package per-platform archives
+      - name: Package per-platform archives and bundle MEX into the toolbox
         run: |
           cd artifacts
           for d in mex-*; do (cd "$d" && zip -r "../zarr-matlab-$d.zip" .); done
+          cd ..
+          cp artifacts/mex-*/* +zarr/+internal/
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          cache: true
+      - name: Build .mltbx (all platform binaries included)
+        uses: matlab-actions/run-command@v2
+        with:
+          command: cd(getenv('GITHUB_WORKSPACE')); addpath(fullfile(pwd, 'tools')); package_toolbox
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/zarr-matlab-mex-*.zip
+          files: |
+            artifacts/zarr-matlab-mex-*.zip
+            zarr-matlab-*.mltbx

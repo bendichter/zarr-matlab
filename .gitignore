@@ -3,3 +3,4 @@
 *.mex*
 scratch/
 tests/fixtures/
+*.mltbx
