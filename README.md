@@ -1,5 +1,8 @@
 # zarr-matlab
 
+[![CI](https://github.com/bendichter/zarr-matlab/actions/workflows/ci.yml/badge.svg)](https://github.com/bendichter/zarr-matlab/actions/workflows/ci.yml)
+[![GitHub release](https://img.shields.io/github/v/release/bendichter/zarr-matlab)](https://github.com/bendichter/zarr-matlab/releases)
+
 Read and write **Zarr v3** arrays natively in MATLAB — no Python required.
 
 [Zarr](https://zarr.dev) is a chunked, compressed array storage format for
@@ -18,25 +21,23 @@ written by either implementation reads back identically in the other.
 
 ## Installation
 
-Clone the repository and add its root folder (the folder *containing* `+zarr`)
+**Easiest:** download `zarr-matlab-<version>.mltbx` from the
+[latest release](https://github.com/bendichter/zarr-matlab/releases/latest)
+and double-click it (or `matlab.addons.install(...)`). It includes prebuilt
+`zstd`/`blosc`/`crc32c` MEX codecs for Linux, Windows, and Apple Silicon.
+
+**From source:** clone and add the repo root (the folder *containing* `+zarr`)
 to your MATLAB path:
 
 ```matlab
 addpath('/path/to/zarr-matlab')
+run tools/build_mex.m   % MEX codecs: needs a C compiler + libzstd / libblosc
 ```
 
 Requires MATLAB R2022b or newer with a JVM (used for gzip compression).
-
-The `zstd` and `blosc` codecs — including zarr-python's **default** codec
-(zstd) — are MEX-backed. Until prebuilt binaries ship with releases, build
-them once with:
-
-```matlab
-run tools/build_mex.m   % needs a C compiler + libzstd / libblosc (Homebrew on macOS)
-```
-
-Everything else works without the MEX; opening data that needs it produces a
-clear error naming the missing codec.
+Everything except the `zstd`/`blosc` codecs works without the MEX binaries;
+opening data that needs them produces a clear error naming the missing codec.
+Intel-Mac users must build the MEX locally (no CI runners exist for maci64).
 
 ## Quick start
 
