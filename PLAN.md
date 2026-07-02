@@ -286,6 +286,21 @@ bidirectional zarr-python interop (float16 done in M1, 0-d arrays done in M2).
 Ordering rationale: interop fixtures arrive with M1 (read-only fixtures first), not at
 M6 — every milestone lands with its Python-interop tests, M6 is completing the matrix.
 
+## 11b. Performance baseline (tools/bench.m, M1 Mac, R2024b, 200 MB float64)
+
+| config | write MB/s | read MB/s | stored MB |
+|---|---|---|---|
+| raw (bytes only) | 329 | 1237 | 200.0 |
+| gzip-1 (Java fallback) | 40 | 112 | 179.0 |
+| zstd-3 (MEX) | 302 | 593 | 183.5 |
+| blosc zstd-3 shuffle (MEX) | 315 | 889 | 151.4 |
+| zstd-3 sharded | 395 | 557 | 183.5 |
+
+Partial 101×101 read from a sharded 200 MB store: ~10 ms. Conclusion: the
+pure-MATLAB layer (permute, chunk math) is not the bottleneck; gzip-via-Java
+is the only slow path and is inherent to the JVM fallback — recommend
+zstd/blosc (MEX) for performance-sensitive data.
+
 ## 12. Risks / open decisions
 
 1. **Minimum MATLAB version** — proposal R2022b (needs `dictionary`? that's R2022b;
