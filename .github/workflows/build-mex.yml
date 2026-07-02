@@ -52,6 +52,7 @@ jobs:
           cmake -S c-blosc -B blosc-build -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED=OFF -DBUILD_STATIC=ON -DBUILD_TESTS=OFF \
             -DBUILD_BENCHMARKS=OFF -DBUILD_FUZZERS=OFF -DDEACTIVATE_SNAPPY=ON \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$PWD/native"
           cmake --build blosc-build --config Release -j4
           cmake --install blosc-build --config Release
@@ -72,15 +73,7 @@ jobs:
       - name: Smoke-test MEX
         uses: matlab-actions/run-command@v2
         with:
-          command: >-
-            cd(getenv('GITHUB_WORKSPACE')); addpath(pwd);
-            a = uint8(repmat('zarr', 1, 500));
-            assert(isequal(zarr.internal.zstd_mex('decompress',
-              zarr.internal.zstd_mex('compress', a, 19, 1)), a));
-            assert(isequal(zarr.internal.blosc_mex('decompress',
-              zarr.internal.blosc_mex('compress', a, 'zstd', 5, 2, 2)), a));
-            assert(zarr.internal.crc32c_mex(uint8('123456789')) == uint32(hex2dec('E3069283')));
-            disp('mex smoke ok')
+          command: cd(getenv('GITHUB_WORKSPACE')); addpath(pwd, fullfile(pwd, 'tools')); mex_smoke
 
       - uses: actions/upload-artifact@v4
         with:
