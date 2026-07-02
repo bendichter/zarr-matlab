@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: MATLAB ${{ matrix.release }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        release: [latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compression libraries
+        run: sudo apt-get update && sudo apt-get install -y libzstd-dev libblosc-dev
+
+      - name: Set up Python with zarr
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "zarr>=3" numpy
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: ${{ matrix.release }}
+
+      - name: Build MEX codecs
+        uses: matlab-actions/run-command@v2
+        with:
+          command: cd(getenv('GITHUB_WORKSPACE')); addpath(fullfile(pwd, 'tools')); build_mex
+
+      - name: Run test suite
+        uses: matlab-actions/run-command@v2
+        with:
+          command: cd(getenv('GITHUB_WORKSPACE')); run tools/run_tests.m
+        env:
+          ZARR_MATLAB_PYTHON: python
