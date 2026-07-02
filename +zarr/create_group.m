@@ -1,0 +1,34 @@
+function g = create_group(store, opts)
+%CREATE_GROUP Create a Zarr v3 group (and any missing parent groups).
+%   g = zarr.create_group(store, Path="a/b", Attributes=struct(...))
+
+arguments
+    store
+    opts.Path (1,1) string = ""
+    opts.Attributes struct = struct()
+end
+
+store = zarr.internal.resolve_store(store);
+path = zarr.internal.normalize_path(opts.Path);
+
+meta = zarr.metadata.GroupMetadata();
+meta.attributes = opts.Attributes;
+
+if strlength(path) == 0
+    key = "zarr.json";
+else
+    key = path + "/zarr.json";
+end
+
+[bytes, found] = store.get(key);
+if found
+    m = jsondecode(native2unicode(bytes, 'UTF-8'));
+    if ~strcmp(m.node_type, 'group')
+        error("zarr:NodeExists", "An array already exists at '%s'.", path);
+    end
+end
+
+zarr.internal.ensure_parents(store, path);
+store.set(key, unicode2native(char(meta.toJsonText()), 'UTF-8'));
+g = zarr.Group(store, path, meta);
+end
