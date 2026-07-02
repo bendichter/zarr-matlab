@@ -25,12 +25,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: .github/workflows/ci.yml
       - run: pip install "zarr>=3" numpy
 
+      # Restores the MATLAB install from the Actions cache on later runs.
+      # (A containerized alternative exists — mathworks/matlab Docker images —
+      # but requires a MATLAB batch licensing token; setup-matlab licenses
+      # public repos automatically.)
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
         with:
           release: ${{ matrix.release }}
+          cache: true
 
       - name: Build MEX codecs
         uses: matlab-actions/run-command@v2
