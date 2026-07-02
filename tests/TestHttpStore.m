@@ -36,11 +36,27 @@ classdef TestHttpStore < matlab.unittest.TestCase
             zarr.consolidate_metadata(ls);
 
             tc.port = 8000 + randi(1000);
-            cmd = sprintf('"%s" -m http.server %d --directory "%s" >/dev/null 2>&1 & echo $!', ...
+            cmd = sprintf('"%s" -m http.server %d --bind 127.0.0.1 --directory "%s" >/dev/null 2>&1 & echo $!', ...
                 tc.python, tc.port, tc.root);
             [~, pidStr] = system(cmd);
             tc.proc = strtrim(pidStr);
-            pause(1.5);  % give the server a moment
+
+            % Some CI environments (e.g. macOS runners) firewall even loopback
+            % listeners; probe with curl and skip rather than time out.
+            reachable = false;
+            for attempt = 1:20
+                status = system(sprintf( ...
+                    'curl -s -o /dev/null --max-time 1 http://127.0.0.1:%d/zarr.json', tc.port));
+                if status == 0
+                    reachable = true;
+                    break
+                end
+                pause(0.25);
+            end
+            if ~reachable
+                tc.stopServer();
+            end
+            tc.assumeTrue(reachable, 'local HTTP server not reachable in this environment');
         end
     end
 
