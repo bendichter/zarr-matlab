@@ -83,6 +83,8 @@ zarr.stores.LocalStore("data.zarr")            % directory on disk (default for 
 zarr.stores.MemoryStore()                      % in-memory, useful for testing
 zarr.stores.ZipStore("archive.zarr.zip")       % read a zipped store
 zarr.stores.ZipStore("out.zarr.zip", Mode="w") % write one (finalized by close())
+zarr.stores.HttpStore("https://host/data.zarr")% read-only over HTTP(S); Range
+                                               % requests -> partial shard reads
 ```
 
 Strings and consolidated metadata:
@@ -128,8 +130,9 @@ copy-free).
 | `sharding_indexed`: partial shard reads, nested shards, both index locations | ✅ |
 | Variable-length strings (`string`/`vlen-utf8`) and bytes (`vlen-bytes`) | ✅ |
 | ZipStore (read + write), consolidated metadata (read + write) | ✅ |
-| Prebuilt MEX binaries for all platforms | 🚧 planned (M3 packaging) |
-| Remote stores (HTTP/S3) | 🚧 planned |
+| HTTP(S) read-only store with ranged partial reads | ✅ |
+| Prebuilt MEX binaries (Linux/Windows/Apple Silicon, attached to releases) | ✅ |
+| S3 store | 🚧 planned |
 | Zarr v2 format | ❌ out of scope |
 
 ## Testing
