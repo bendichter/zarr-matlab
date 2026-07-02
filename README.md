@@ -12,12 +12,17 @@ in pure MATLAB, with byte-level interoperability against
 [zarr-python 3](https://zarr.readthedocs.io/) verified in the test suite: data
 written by either implementation reads back identically in the other.
 
-> **Status: early development.** The core read/write path, sharding with
-> partial shard reads, and all standard codecs (gzip, zstd, blosc, crc32c,
-> transpose) are implemented and interop-tested against zarr-python. See
-> [PLAN.md](PLAN.md) for the roadmap. MathWorks' official
+> **How this fits the MATLAB Zarr landscape:** MathWorks' official
 > [Zarr support](https://github.com/mathworks/MATLAB-support-for-Zarr-files)
-> covers Zarr **v2**; this library covers Zarr **v3**.
+> covers Zarr **v2** only.
+> [scalableminds/zarr-matlab](https://github.com/scalableminds/zarr-matlab)
+> binds the [zarrs](https://zarrs.dev) Rust implementation — a thin, fast
+> wrapper. **This library is a pure-MATLAB v3 implementation**: complete
+> dtype coverage (incl. complex, float16, variable-length strings,
+> datetime64), consolidated metadata, zip/HTTP stores, native MATLAB
+> indexing, and an installer with prebuilt compression codecs — with
+> byte-level zarr-python round trips verified in CI on every commit. See
+> [PLAN.md](PLAN.md) for the roadmap.
 
 ## Installation
 
