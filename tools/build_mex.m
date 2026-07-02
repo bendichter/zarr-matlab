@@ -27,8 +27,19 @@ end
 
 function buildOne(src, outDir, prefix, libname)
 inc = "-I" + fullfile(prefix, "include");
-staticLib = fullfile(prefix, "lib", "lib" + libname + ".a");
-if isfile(staticLib)
+% Prefer a static library (relocatable binary); names vary by platform.
+staticLib = "";
+for d = [fullfile(prefix, "lib"), fullfile(prefix, "lib64")]
+    for c = ["lib" + libname + ".a", libname + "_static.lib", ...
+             "lib" + libname + ".lib", libname + ".lib"]
+        if isfile(fullfile(d, c))
+            staticLib = fullfile(d, c);
+            break
+        end
+    end
+    if strlength(staticLib) > 0, break; end
+end
+if strlength(staticLib) > 0
     linkArgs = {char(staticLib)};
 else
     linkArgs = {char("-L" + fullfile(prefix, "lib")), char("-l" + libname)};

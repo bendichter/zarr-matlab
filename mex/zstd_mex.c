@@ -3,6 +3,7 @@
  *   out = zstd_mex('compress',   uint8vec, level, checksum)
  *   out = zstd_mex('decompress', uint8vec)
  */
+#include <stdint.h>
 #include <string.h>
 #include <zstd.h>
 #include "mex.h"

@@ -5,6 +5,7 @@
  *
  *   shuffle: 0 = noshuffle, 1 = byte shuffle, 2 = bitshuffle
  */
+#include <stdint.h>
 #include <string.h>
 #include <blosc.h>
 #include "mex.h"
