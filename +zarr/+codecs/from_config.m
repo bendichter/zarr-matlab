@@ -28,6 +28,10 @@ switch name
         codec = zarr.codecs.VlenUtf8Codec();
     case "vlen-bytes"
         codec = zarr.codecs.VlenBytesCodec();
+    case "numcodecs.zlib"
+        codec = zarr.codecs.ZlibCodec.fromConfig(cfg);
+    case "numcodecs.shuffle"
+        codec = zarr.codecs.ShuffleCodec.fromConfig(cfg);
     otherwise
         error("zarr:UnsupportedCodec", "Unsupported codec '%s'.", name);
 end

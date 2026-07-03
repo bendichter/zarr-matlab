@@ -86,6 +86,24 @@ classdef TestCodecs < matlab.unittest.TestCase
             end
         end
 
+        function zlibAndShuffle(tc)
+            % zlib framing (RFC 1950), as written by HDF5 deflate / numcodecs
+            p = tc.makePipeline({zarr.codecs.BytesCodec(), ...
+                zarr.codecs.ShuffleCodec(8), zarr.codecs.ZlibCodec(5)}, ...
+                "float64", [10 10]);
+            A = tc.sample("float64", [10 10]);
+            bytes = p.encode(A);
+            tc.verifyEqual(bytes(1), uint8(120), 'zlib magic (0x78)');
+            tc.verifyEqual(p.decode(bytes), A);
+            % shuffle handles non-multiple trailing bytes (numcodecs behavior)
+            sh = zarr.codecs.ShuffleCodec(4);
+            raw = uint8(1:11);
+            enc = sh.encode(raw);
+            tc.verifyEqual(sh.decode(enc), raw);
+            tc.verifyEqual(enc(end - 2:end), uint8(9:11), ...
+                'trailing partial element unshuffled');
+        end
+
         function shardingPipelineRoundTrip(tc)
             info = zarr.internal.dtype_info("float64");
             sh = zarr.codecs.ShardingCodec([2 3], ...

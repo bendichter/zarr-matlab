@@ -59,6 +59,9 @@ CASES = [
     ("gzip9", "float32", (6, 6), (3, 3), {"compressors": ["gzip9"]}),
     ("shard_nested", "float64", (8, 8), (4, 4),
      {"shards": (8, 8), "nested_inner": (2, 2)}),
+    # numcodecs extension codecs (zlib framing, byte shuffle)
+    ("zlib5", "float64", (8, 6), (4, 3), {"compressors": ["zlib5"]}),
+    ("shuffle_zlib", "int32", (10,), (4,), {"compressors": ["shuffle4", "zlib1"]}),
 ]
 
 
@@ -101,6 +104,13 @@ def build_codec_kwargs(spec):
         "blosc_lz4hc_shuf": BloscCodec(cname="lz4hc", clevel=5, shuffle="shuffle"),
         "blosc_zlib_shuf": BloscCodec(cname="zlib", clevel=5, shuffle="shuffle"),
     }
+    try:
+        from zarr.codecs.numcodecs import Zlib as NcZlib, Shuffle as NcShuffle
+    except ImportError:
+        from numcodecs.zarr3 import Zlib as NcZlib, Shuffle as NcShuffle
+    comp_map["zlib5"] = NcZlib(level=5)
+    comp_map["zlib1"] = NcZlib(level=1)
+    comp_map["shuffle4"] = NcShuffle(elementsize=4)
     if "nested_inner" in spec:
         kwargs["serializer"] = ShardingCodec(
             chunk_shape=spec["nested_inner"], codecs=[BytesCodec()])
