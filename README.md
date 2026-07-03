@@ -1,9 +1,12 @@
 # zarr-matlab
 
-[![CI](https://github.com/bendichter/zarr-matlab/actions/workflows/ci.yml/badge.svg)](https://github.com/bendichter/zarr-matlab/actions/workflows/ci.yml)
-[![GitHub release](https://img.shields.io/github/v/release/bendichter/zarr-matlab)](https://github.com/bendichter/zarr-matlab/releases)
+[![CI](https://github.com/catalystneuro/zarr-matlab/actions/workflows/ci.yml/badge.svg)](https://github.com/catalystneuro/zarr-matlab/actions/workflows/ci.yml)
+[![Docs](https://github.com/catalystneuro/zarr-matlab/actions/workflows/docs.yml/badge.svg)](https://catalystneuro.github.io/zarr-matlab/)
+[![GitHub release](https://img.shields.io/github/v/release/catalystneuro/zarr-matlab)](https://github.com/catalystneuro/zarr-matlab/releases)
 
 Read and write **Zarr v3** arrays natively in MATLAB — no Python required.
+
+**📖 Documentation: [catalystneuro.github.io/zarr-matlab](https://catalystneuro.github.io/zarr-matlab/)** — every code example in the docs is executed by the test suite on every commit.
 
 [Zarr](https://zarr.dev) is a chunked, compressed array storage format for
 scientific data, designed for cloud storage and parallel I/O. This library
@@ -27,7 +30,7 @@ written by either implementation reads back identically in the other.
 ## Installation
 
 **Easiest:** download `zarr-matlab-<version>.mltbx` from the
-[latest release](https://github.com/bendichter/zarr-matlab/releases/latest)
+[latest release](https://github.com/catalystneuro/zarr-matlab/releases/latest)
 and double-click it (or `matlab.addons.install(...)`). It includes prebuilt
 `zstd`/`blosc`/`crc32c` MEX codecs for Linux, Windows, and Apple Silicon.
 

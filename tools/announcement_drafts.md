@@ -61,7 +61,7 @@ BOTH MATLAB implementations (easy merge, fair to both projects):
 ```diff
  * [Zarr.jl](https://github.com/meggart/Zarr.jl)
  * [ndarray.scala](https://github.com/lasersonlab/ndarray.scala)
-+* [zarr-matlab](https://github.com/bendichter/zarr-matlab) (MATLAB, pure MATLAB v3 implementation)
++* [zarr-matlab](https://github.com/catalystneuro/zarr-matlab) (MATLAB, pure MATLAB v3 implementation)
 +* [zarr-matlab (zarrs-backed)](https://github.com/scalableminds/zarr-matlab) (MATLAB bindings to zarrs)
 ```
 
@@ -72,7 +72,7 @@ BOTH MATLAB implementations (easy merge, fair to both projects):
 > Two MATLAB implementations of Zarr v3 now exist and both are actively
 > developed; this adds them to the list:
 >
-> - [bendichter/zarr-matlab](https://github.com/bendichter/zarr-matlab) —
+> - [catalystneuro/zarr-matlab](https://github.com/catalystneuro/zarr-matlab) —
 >   pure-MATLAB implementation of the v3 spec (sharding with partial
 >   reads, zstd/blosc/gzip/crc32c, variable-length strings,
 >   datetime64, consolidated metadata). CI verifies byte-level round
@@ -94,7 +94,7 @@ https://github.com/zarr-developers/community/issues/16
 > binds the excellent [zarrs](https://zarrs.dev) Rust implementation to
 > MATLAB — a thin, fast wrapper.
 >
-> I've just released [bendichter/zarr-matlab](https://github.com/bendichter/zarr-matlab),
+> I've just released [catalystneuro/zarr-matlab](https://github.com/catalystneuro/zarr-matlab),
 > a **pure-MATLAB** implementation of the v3 spec: core arrays/groups,
 > sharding with ranged partial reads, zstd/blosc/gzip/crc32c (small
 > optional MEX codecs, prebuilt and bundled in a `.mltbx` for R2022b+),
