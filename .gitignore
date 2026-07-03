@@ -5,3 +5,4 @@ scratch/
 tests/fixtures/
 *.mltbx
 site/
+.DS_Store
