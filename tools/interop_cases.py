@@ -51,6 +51,14 @@ CASES = [
     ("dt_ns", "datetime64[ns]", (6,), (3,), {}),
     ("td_ms", "timedelta64[ms]", (5,), (2,), {"compressors": ["gzip5"]}),
     ("dt_fill", "datetime64[s]", (4,), (2,), {"partial": (2,)}),
+    # remaining codec-option combinations
+    ("blosc_lz4hc_shuf", "float64", (8, 6), (3, 3),
+     {"compressors": ["blosc_lz4hc_shuf"]}),
+    ("blosc_zlib_shuf", "int32", (10,), (4,),
+     {"compressors": ["blosc_zlib_shuf"]}),
+    ("gzip9", "float32", (6, 6), (3, 3), {"compressors": ["gzip9"]}),
+    ("shard_nested", "float64", (8, 8), (4, 4),
+     {"shards": (8, 8), "nested_inner": (2, 2)}),
 ]
 
 
@@ -78,18 +86,24 @@ def pattern(shape, dtype):
 
 def build_codec_kwargs(spec):
     from zarr.codecs import (BloscCodec, BytesCodec, Crc32cCodec, GzipCodec,
-                             TransposeCodec, ZstdCodec)
+                             ShardingCodec, TransposeCodec, ZstdCodec)
     kwargs = {}
     comp_map = {
         "gzip1": GzipCodec(level=1),
         "gzip5": GzipCodec(level=5),
+        "gzip9": GzipCodec(level=9),
         "crc32c": Crc32cCodec(),
         "zstd": ZstdCodec(),
         "zstd19ck": ZstdCodec(level=19, checksum=True),
         "blosc_lz4_shuf": BloscCodec(cname="lz4", clevel=5, shuffle="shuffle"),
         "blosc_zstd_bit": BloscCodec(cname="zstd", clevel=3, shuffle="bitshuffle"),
         "blosc_blosclz_noshuf": BloscCodec(cname="blosclz", clevel=9, shuffle="noshuffle"),
+        "blosc_lz4hc_shuf": BloscCodec(cname="lz4hc", clevel=5, shuffle="shuffle"),
+        "blosc_zlib_shuf": BloscCodec(cname="zlib", clevel=5, shuffle="shuffle"),
     }
+    if "nested_inner" in spec:
+        kwargs["serializer"] = ShardingCodec(
+            chunk_shape=spec["nested_inner"], codecs=[BytesCodec()])
     if spec.get("default_compressors"):
         pass  # let zarr-python pick its defaults
     elif "compressors" in spec:

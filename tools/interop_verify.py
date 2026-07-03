@@ -20,8 +20,6 @@ def main(root):
 
     checked = 0
     for name, dtype, shape, chunks, spec in CASES:
-        if spec.get("chunk_key_encoding") == "v2":
-            continue  # read-only case; MATLAB does not write it
         arr = group[name]
         assert arr.shape == shape, (name, arr.shape, shape)
         if dtype not in ("string", "bytes"):
