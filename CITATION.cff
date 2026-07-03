@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use zarr-matlab in your research, please cite it as below."
+type: software
+title: "zarr-matlab: Zarr v3 for MATLAB"
+abstract: >-
+  A pure-MATLAB implementation of the Zarr v3 chunked, compressed
+  N-dimensional array storage specification, with byte-level
+  interoperability against zarr-python verified in continuous
+  integration. Supports sharding with partial reads, zstd/blosc/gzip/
+  crc32c codecs, variable-length strings, datetime64, zip and HTTP
+  stores, and consolidated metadata.
+authors:
+  - family-names: Dichter
+    given-names: Benjamin
+    email: ben.dichter@gmail.com
+    affiliation: CatalystNeuro
+license: MIT
+repository-code: "https://github.com/catalystneuro/zarr-matlab"
+url: "https://catalystneuro.github.io/zarr-matlab/"
+version: 0.2.0
+date-released: "2026-07-02"
+keywords:
+  - Zarr
+  - MATLAB
+  - array storage
+  - compression
+  - chunked arrays
+  - scientific data
+  - cloud storage

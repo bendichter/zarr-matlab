@@ -171,6 +171,15 @@ output with zarr-python. The interop test looks for python in `.venv/bin/python`
 (create with `python3 -m venv .venv && .venv/bin/pip install "zarr>=3"`) or
 `$ZARR_MATLAB_PYTHON`, and skips cleanly when unavailable.
 
+## Citation
+
+If you use zarr-matlab in your research, please cite it (see
+[`CITATION.cff`](CITATION.cff), or use GitHub's "Cite this repository"
+button):
+
+> Dichter, B. (2026). *zarr-matlab: Zarr v3 for MATLAB* (Version 0.2.0)
+> [Computer software]. https://github.com/catalystneuro/zarr-matlab
+
 ## Contributing / roadmap
 
 Development follows the milestones in [PLAN.md](PLAN.md). Issues and PRs
