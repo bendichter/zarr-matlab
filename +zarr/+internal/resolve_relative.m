@@ -25,7 +25,10 @@ else
     hostPart = "";
     segs = split(strrep(base, "\", "/"), "/");
 end
-segs = segs(strlength(segs) > 0);
+% Keep segs a row vector throughout: deleting the last element of a column
+% string array flips it to 1x0, after which (end+1,1) assignment gap-fills
+% with <missing>.
+segs = reshape(segs(strlength(segs) > 0), 1, []);
 leadingSlash = ~isHttp && startsWith(strrep(base, "\", "/"), "/");
 
 for s = reshape(split(strrep(rel, "\", "/"), "/"), 1, [])
@@ -37,11 +40,15 @@ for s = reshape(split(strrep(rel, "\", "/"), "/"), 1, [])
         end
         segs(end) = [];
     else
-        segs(end + 1, 1) = s; %#ok<AGROW>
+        segs(end + 1) = s; %#ok<AGROW>
     end
 end
 
-joined = strjoin(segs, "/");
+if isempty(segs)
+    joined = "";
+else
+    joined = strjoin(segs, "/");
+end
 if isHttp
     full = hostPart + "/" + joined;
 elseif leadingSlash

@@ -70,7 +70,10 @@ classdef HttpStore < zarr.stores.Store
 
     methods (Access = private)
         function [data, found] = fetch(obj, key, rangeHeader)
-            url = obj.baseUrl + "/" + string(key);
+            % Percent-encode characters that would change URL semantics
+            % ('#' starts a fragment; .mat-derived stores use '#refs#').
+            key = strrep(strrep(strrep(string(key), "%", "%25"), "#", "%23"), " ", "%20");
+            url = obj.baseUrl + "/" + key;
             headers = {};
             if ~isempty(rangeHeader)
                 headers = {'Range', rangeHeader};
