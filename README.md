@@ -1,3 +1,5 @@
+<img src="docs/assets/logo.svg" align="right" width="110" alt="zarr-matlab logo: a chunked array whose stored chunks spell a Z"/>
+
 # zarr-matlab
 
 [![CI](https://github.com/catalystneuro/zarr-matlab/actions/workflows/ci.yml/badge.svg)](https://github.com/catalystneuro/zarr-matlab/actions/workflows/ci.yml)

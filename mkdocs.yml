@@ -6,6 +6,8 @@ repo_name: catalystneuro/zarr-matlab
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
   palette:
     - scheme: default
       primary: deep purple
