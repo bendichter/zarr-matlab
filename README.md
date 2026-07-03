@@ -177,7 +177,7 @@ If you use zarr-matlab in your research, please cite it (see
 [`CITATION.cff`](CITATION.cff), or use GitHub's "Cite this repository"
 button):
 
-> Dichter, B. (2026). *zarr-matlab: Zarr v3 for MATLAB* (Version 0.2.0)
+> Dichter, B. (2026). *zarr-matlab: Zarr v3 for MATLAB* (Version 0.3.0)
 > [Computer software]. https://github.com/catalystneuro/zarr-matlab
 
 ## Contributing / roadmap
