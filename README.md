@@ -1,4 +1,6 @@
-<img src="docs/assets/logo.svg" align="right" width="110" alt="zarr-matlab logo: a chunked array whose stored chunks spell a Z"/>
+<div align="center">
+
+<img src="docs/assets/logo.svg" width="110" alt="zarr-matlab logo: a chunked array whose stored chunks spell a Z"/>
 
 # zarr-matlab
 
@@ -7,6 +9,8 @@
 [![GitHub release](https://img.shields.io/github/v/release/catalystneuro/zarr-matlab)](https://github.com/catalystneuro/zarr-matlab/releases)
 
 Read and write **Zarr v3** arrays natively in MATLAB — no Python required.
+
+</div>
 
 **📖 Documentation: [catalystneuro.github.io/zarr-matlab](https://catalystneuro.github.io/zarr-matlab/)** — every code example in the docs is executed by the test suite on every commit.
 
