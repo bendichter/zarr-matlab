@@ -3,6 +3,11 @@ function bytes = encode_structured(records, info, endian)
 %   records is an n-by-1 (or 1-by-n) struct array with one field per
 %   info.fields entry (info.fields(k).Name).
 %
+%   Encodes one field at a time across all n records (via
+%   zarr.internal.encode_scalar_field), rather than looping record by
+%   record -- for a table with many rows this cuts the scalar encode calls
+%   from n*numel(fields) down to numel(fields).
+%
 %   "structured" is not part of the Zarr v3 specification -- see
 %   zarr.internal.dtype_info.
 
@@ -14,15 +19,16 @@ function bytes = encode_structured(records, info, endian)
 
     records = reshape(records, [], 1);
     n = numel(records);
-    bytes = zeros(1, n * info.itemsize, 'uint8');
-
-    for j = 1:n
-        for k = 1:numel(info.fields)
-            f = info.fields(k);
-            fieldBytes = zarr.internal.encode_scalar_field(records(j).(f.Name), f.Info, endian);
-            first = (j - 1) * info.itemsize + f.Offset + 1;
-            last = first + f.Info.itemsize - 1;
-            bytes(first:last) = fieldBytes;
-        end
+    if n == 0
+        bytes = zeros(1, 0, 'uint8');
+        return
     end
+
+    b = zeros(info.itemsize, n, 'uint8');
+    for k = 1:numel(info.fields)
+        f = info.fields(k);
+        values = reshape([records.(f.Name)], n, 1);
+        b(f.Offset + 1 : f.Offset + f.Info.itemsize, :) = zarr.internal.encode_scalar_field(values, f.Info, n, endian);
+    end
+    bytes = reshape(b, 1, []);
 end
