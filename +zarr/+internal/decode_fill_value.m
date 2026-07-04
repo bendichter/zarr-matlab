@@ -2,7 +2,7 @@ function v = decode_fill_value(raw, info)
 %DECODE_FILL_VALUE JSON fill_value (as returned by jsondecode) -> MATLAB scalar.
 
 cls = char(info.matlabClass);
-if info.zarrType == "string"
+if info.zarrType == "string" || info.zarrType == "fixed_length_utf32"
     v = string(raw);
     return
 elseif info.zarrType == "variable_length_bytes"
@@ -11,6 +11,15 @@ elseif info.zarrType == "variable_length_bytes"
     else
         v = reshape(matlab.net.base64decode(char(string(raw))), 1, []);
     end
+    return
+elseif info.zarrType == "structured"
+    % Unlike other fill values, zarr-python encodes a "structured" (compound
+    % record) fill_value as base64 of the raw little-endian record bytes,
+    % regardless of the array's configured codec endianness (which is not
+    % yet known at metadata-parse time). See zarr.internal.dtype_info.
+    rawBytes = reshape(matlab.net.base64decode(char(string(raw))), 1, []);
+    records = zarr.internal.decode_structured(rawBytes, info, 1, "little");
+    v = records(1);
     return
 end
 if info.isComplex

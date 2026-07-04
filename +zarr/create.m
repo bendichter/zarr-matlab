@@ -68,27 +68,24 @@ end
 
 % Fill value
 if isempty(opts.FillValue) && ~isstring(opts.FillValue)
-    if info.zarrType == "bool"
-        fillValue = false;
-    elseif info.zarrType == "string"
-        fillValue = "";
-    elseif info.zarrType == "variable_length_bytes"
-        fillValue = uint8.empty(1, 0);
-    elseif startsWith(info.zarrType, "numpy.")
+    if startsWith(info.zarrType, "numpy.")
         fillValue = intmin('int64');  % NaT
-    elseif info.isComplex
-        fillValue = complex(cast(0, char(info.matlabClass)));
     else
-        fillValue = cast(0, char(info.matlabClass));
+        fillValue = zarr.internal.default_scalar_fill_value(info);
     end
 else
     fillValue = opts.FillValue;
     if info.zarrType == "bool"
         fillValue = logical(fillValue);
-    elseif info.zarrType == "string"
+    elseif info.zarrType == "string" || info.zarrType == "fixed_length_utf32"
         fillValue = string(fillValue);
     elseif info.zarrType == "variable_length_bytes"
         fillValue = uint8(fillValue(:)');
+    elseif info.zarrType == "structured"
+        if ~isstruct(fillValue)
+            error("zarr:TypeMismatch", ...
+                "structured arrays take a scalar struct FillValue with one field per record field.");
+        end
     else
         fillValue = cast(fillValue, char(info.matlabClass));
     end

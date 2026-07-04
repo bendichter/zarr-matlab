@@ -10,6 +10,18 @@ function info = dtype_info(dtype, config)
 %     isFloat16   - true for float16 (represented as single in memory)
 %     isVlen      - true for variable-length types (string, bytes)
 %     config      - extension dtype configuration struct, or []
+%     fields      - for zarrType "structured", a struct array (one entry
+%                   per record field) with fields Name, Info (this same
+%                   dtype_info struct, recursively), Offset (0-based byte
+%                   offset within the record); [] otherwise
+%
+%   "structured" (a fixed-layout record/compound type) and its
+%   "fixed_length_utf32" field sub-type are NOT part of the Zarr v3
+%   specification -- they are unstable, unspecified extensions used by
+%   zarr-python (a UnstableSpecificationWarning is raised when writing
+%   them). Support here exists to read real-world files that use them
+%   (e.g. some NWB Zarr v3 exports via hdmf-zarr); the on-disk
+%   representation may change in a future zarr-python release.
 
 if isstruct(dtype)
     config = struct();
@@ -43,7 +55,45 @@ if ismember(dtype, ["numpy.datetime64", "numpy.timedelta64"])
         'isComplex', false, ...
         'isFloat16', false, ...
         'isVlen', false, ...
-        'config', config);
+        'config', config, ...
+        'fields', []);
+    return
+end
+
+if dtype == "fixed_length_utf32"
+    if ~isstruct(config) || ~isfield(config, 'length_bytes')
+        error("zarr:InvalidMetadata", "fixed_length_utf32 requires a length_bytes configuration.");
+    end
+    info = struct( ...
+        'zarrType', dtype, ...
+        'matlabClass', "string", ...
+        'itemsize', double(config.length_bytes), ...
+        'isComplex', false, ...
+        'isFloat16', false, ...
+        'isVlen', false, ...
+        'config', config, ...
+        'fields', []);
+    return
+end
+
+if dtype == "structured"
+    if ~isstruct(config) || ~isfield(config, 'fields')
+        error("zarr:InvalidMetadata", "structured requires a fields configuration.");
+    end
+    fields = structuredFieldInfo(config.fields);
+    itemsize = 0;
+    if ~isempty(fields)
+        itemsize = fields(end).Offset + fields(end).Info.itemsize;
+    end
+    info = struct( ...
+        'zarrType', dtype, ...
+        'matlabClass', "struct", ...
+        'itemsize', itemsize, ...
+        'isComplex', false, ...
+        'isFloat16', false, ...
+        'isVlen', false, ...
+        'config', config, ...
+        'fields', fields);
     return
 end
 
@@ -75,5 +125,28 @@ info = struct( ...
     'isComplex', isComplex, ...
     'isFloat16', isFloat16, ...
     'isVlen', isVlen, ...
-    'config', []);
+    'config', [], ...
+    'fields', []);
+end
+
+function fields = structuredFieldInfo(rawFields)
+%STRUCTUREDFIELDINFO Normalize a "structured" dtype's fields configuration.
+%   rawFields is jsondecode's output for a JSON list of [name, dtype]
+%   pairs, where dtype is either a data_type name (char) or a nested
+%   extension-dtype struct -- jsondecode returns this as a cell array of
+%   2-element cell arrays (the pair elements are not type-uniform).
+
+if isstruct(rawFields)
+    rawFields = num2cell(reshape(rawFields, [], 1));
+end
+
+fields = struct('Name', {}, 'Info', {}, 'Offset', {});
+offset = 0;
+for i = 1:numel(rawFields)
+    entry = rawFields{i};
+    name = string(entry{1});
+    subInfo = zarr.internal.dtype_info(entry{2});
+    fields(end + 1) = struct('Name', name, 'Info', subInfo, 'Offset', offset); %#ok<AGROW>
+    offset = offset + subInfo.itemsize;
+end
 end

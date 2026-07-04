@@ -1,11 +1,16 @@
 function txt = encode_fill_value_json(v, info)
 %ENCODE_FILL_VALUE_JSON MATLAB scalar -> JSON text for the fill_value field.
 
-if info.zarrType == "string"
+if info.zarrType == "string" || info.zarrType == "fixed_length_utf32"
     if ismissing(v), v = ""; end
     txt = string(jsonencode(char(v)));
 elseif info.zarrType == "variable_length_bytes"
     txt = """" + string(matlab.net.base64encode(uint8(v(:)'))) + """";
+elseif info.zarrType == "structured"
+    % See zarr.internal.decode_fill_value: structured fill_value bytes are
+    % base64 of the raw little-endian record bytes.
+    bytes = zarr.internal.encode_structured(v, info, "little");
+    txt = """" + string(matlab.net.base64encode(bytes)) + """";
 elseif info.isComplex
     txt = "[" + floatJson(real(double(v))) + "," + floatJson(imag(double(v))) + "]";
 elseif info.zarrType == "bool"
