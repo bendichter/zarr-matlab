@@ -123,19 +123,31 @@ classdef ZipStore < zarr.stores.Store
                 obj.zf.close();
                 return
             end
-            % Write all pending entries in one pass (deflate-compressed).
+            % Write all pending entries in one pass (deflate-compressed). On
+            % failure, close the streams and delete the partial file so a
+            % failed write never leaves a corrupt archive on disk.
             fos = java.io.FileOutputStream(char(obj.path));
             zos = java.util.zip.ZipOutputStream(fos);
-            keys = sort(string(obj.pending.keys())');
-            for i = 1:numel(keys)
-                zos.putNextEntry(java.util.zip.ZipEntry(char(keys(i))));
-                data = obj.pending(char(keys(i)));
-                if ~isempty(data)
-                    zos.write(typecast(uint8(data), 'int8'));
+            try
+                keys = sort(string(obj.pending.keys())');
+                for i = 1:numel(keys)
+                    zos.putNextEntry(java.util.zip.ZipEntry(char(keys(i))));
+                    data = obj.pending(char(keys(i)));
+                    if ~isempty(data)
+                        zos.write(typecast(uint8(data), 'int8'));
+                    end
+                    zos.closeEntry();
                 end
-                zos.closeEntry();
+                zos.close();
+            catch err
+                try %#ok<TRYNC> best-effort cleanup; must not mask the original error
+                    zos.close();
+                end
+                if isfile(obj.path)
+                    delete(obj.path);
+                end
+                rethrow(err);
             end
-            zos.close();
         end
 
         function delete(obj)

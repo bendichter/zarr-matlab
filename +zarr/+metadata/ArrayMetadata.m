@@ -63,10 +63,13 @@ classdef ArrayMetadata
             if (info.matlabClass == "int64" || info.matlabClass == "uint64") ...
                     && ~info.isVlen && isnumeric(m.fill_value)
                 % jsondecode went through double and may have lost precision
-                % beyond 2^53; re-extract the raw token and parse exactly.
-                tok = regexp(char(txt), '"fill_value"\s*:\s*(-?\d+)', 'tokens', 'once');
-                if ~isempty(tok)
-                    obj.fillValue = zarr.internal.parse_int64_token(tok{1}, ...
+                % beyond 2^53; re-extract the exact token. A regex over the
+                % whole document could match a same-named key nested inside
+                % "attributes", so tokenize top-level keys instead.
+                [topKeys, topVals] = zarr.internal.json_object_entries(txt);
+                idx = find(topKeys == "fill_value", 1);
+                if ~isempty(idx)
+                    obj.fillValue = zarr.internal.parse_int64_token(char(topVals(idx)), ...
                         info.matlabClass == "int64");
                 end
             end

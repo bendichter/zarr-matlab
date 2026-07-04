@@ -185,6 +185,22 @@ classdef TestArray < matlab.unittest.TestCase
             tc.verifyEqual(zs(:, :), d);
         end
 
+        function groupAttributesPreservedOnRecreate(tc)
+            zarr.create_group(tc.store, Attributes=struct('subject', 'M-042'));
+            tc.verifyWarning(@() zarr.create_group(tc.store, Attributes=struct('other', 1)), ...
+                "zarr:NodeExists");
+            g = zarr.open(tc.store);
+            tc.verifyEqual(string(g.attrs.subject), "M-042", 'existing attrs survive');
+            tc.verifyFalse(isfield(g.attrs, 'other'), 'new attrs are not applied');
+        end
+
+        function rank1WriteWarnsOnNonVectorData(tc)
+            z = zarr.create(tc.store, 6, "double", ChunkShape=6);
+            tc.verifyWarningFree(@() z.write((1:6)'));
+            tc.verifyWarning(@() z.write(reshape(1:6, [2 3])), "zarr:ShapeFlattened");
+            tc.verifyEqual(z.read(), (1:6)');
+        end
+
         function deleteNode(tc)
             zarr.create_group(tc.store);
             z = zarr.create(tc.store, [4 4], "float64", Path="a/x", ChunkShape=[2 2]);

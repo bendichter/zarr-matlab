@@ -11,9 +11,6 @@ end
 store = zarr.internal.resolve_store(store);
 path = zarr.internal.normalize_path(opts.Path);
 
-meta = zarr.metadata.GroupMetadata();
-meta.attributes = opts.Attributes;
-
 if strlength(path) == 0
     key = "zarr.json";
 else
@@ -26,7 +23,14 @@ if found
     if ~strcmp(m.node_type, 'group')
         error("zarr:NodeExists", "An array already exists at '%s'.", path);
     end
+    warning("zarr:NodeExists", ...
+        "A group already exists at '%s'; keeping its existing attributes.", path);
+    g = zarr.open(store, Path=path);
+    return
 end
+
+meta = zarr.metadata.GroupMetadata();
+meta.attributes = opts.Attributes;
 
 zarr.internal.ensure_parents(store, path);
 store.set(key, unicode2native(char(meta.toJsonText()), 'UTF-8'));

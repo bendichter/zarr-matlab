@@ -98,6 +98,11 @@ classdef Array < handle & matlab.mixin.indexing.RedefinesParen
             end
 
             if R == 1
+                if ~isempty(data) && ~isvector(data)
+                    warning("zarr:ShapeFlattened", ...
+                        "Data with %d dimensions is being flattened to a column vector for a rank-1 array write.", ...
+                        ndims(data));
+                end
                 count = numel(data);
                 data = data(:);
             else
