@@ -6,3 +6,4 @@ tests/fixtures/
 *.mltbx
 site/
 .DS_Store
+docs/reports/
