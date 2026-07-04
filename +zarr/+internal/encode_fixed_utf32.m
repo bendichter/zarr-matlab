@@ -4,6 +4,12 @@ function bytes = encode_fixed_utf32(values, info, endian)
 %   as info.itemsize/4 UTF-32 code points, null-padded at the end to fill
 %   info.itemsize bytes.
 %
+%   Non-BMP characters (> U+FFFF) are not supported -- MATLAB char is
+%   UTF-16, so such a character appears as a surrogate pair of code units,
+%   which this function would otherwise encode as two invalid UTF-32 code
+%   points instead of one. Such input errors rather than encoding invalid
+%   bytes.
+%
 %   "fixed_length_utf32" is not part of the Zarr v3 specification -- see
 %   zarr.internal.dtype_info.
 
@@ -19,6 +25,10 @@ function bytes = encode_fixed_utf32(values, info, endian)
     bytes = zeros(1, n * info.itemsize, 'uint8');
     for j = 1:n
         chars = double(char(values(j)));
+        if any(chars >= 55296 & chars <= 57343)
+            error("zarr:UnsupportedValue", ...
+                "String '%s' contains a non-BMP character (> U+FFFF), which is not supported.", values(j));
+        end
         if numel(chars) > nCodeUnits
             error("zarr:ValueError", ...
                 "String '%s' (%d characters) exceeds fixed_length_utf32 capacity of %d characters.", ...

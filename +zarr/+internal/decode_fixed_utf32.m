@@ -5,6 +5,11 @@ function values = decode_fixed_utf32(bytes, info, n, endian)
 %   (matching numpy's fixed-length unicode ('U') convention). Returns an
 %   n-by-1 string array with trailing null padding stripped.
 %
+%   Non-BMP code points (> U+FFFF) are not supported -- MATLAB char is
+%   UTF-16, so representing them would require surrogate-pair handling this
+%   function does not implement. Such input errors rather than silently
+%   truncating to an incorrect BMP character.
+%
 %   "fixed_length_utf32" is not part of the Zarr v3 specification -- see
 %   zarr.internal.dtype_info.
 
@@ -26,11 +31,16 @@ function values = decode_fixed_utf32(bytes, info, n, endian)
         if isempty(lastNonZero)
             values(j) = "";
         else
+            codePoints = double(u32(1:lastNonZero));
+            if any(codePoints > 65535)
+                error("zarr:UnsupportedValue", ...
+                    "fixed_length_utf32 element contains a non-BMP code point (> U+FFFF), which is not supported.");
+            end
             % char() preserves array shape rather than producing a 1-row
             % string of characters, so a column vector of code points must
             % be transposed to a row first -- otherwise string() reads each
             % row as a separate one-character string.
-            values(j) = string(char(reshape(double(u32(1:lastNonZero)), 1, [])));
+            values(j) = string(char(reshape(codePoints, 1, [])));
         end
     end
 end

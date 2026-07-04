@@ -136,10 +136,6 @@ function fields = structuredFieldInfo(rawFields)
 %   extension-dtype struct -- jsondecode returns this as a cell array of
 %   2-element cell arrays (the pair elements are not type-uniform).
 
-if isstruct(rawFields)
-    rawFields = num2cell(reshape(rawFields, [], 1));
-end
-
 fields = struct('Name', {}, 'Info', {}, 'Offset', {});
 offset = 0;
 for i = 1:numel(rawFields)
