@@ -16,17 +16,7 @@ classdef Pipeline
     methods
         function obj = Pipeline(codecs, info, chunkShape, fillValue)
             if nargin < 4
-                if info.zarrType == "bool"
-                    fillValue = false;
-                elseif info.zarrType == "string"
-                    fillValue = "";
-                elseif info.zarrType == "variable_length_bytes"
-                    fillValue = uint8.empty(1, 0);
-                elseif info.isComplex
-                    fillValue = complex(cast(0, char(info.matlabClass)));
-                else
-                    fillValue = cast(0, char(info.matlabClass));
-                end
+                fillValue = zarr.internal.default_scalar_fill_value(info);
             end
             obj.info = info;
             obj.chunkShape = reshape(chunkShape, 1, []);

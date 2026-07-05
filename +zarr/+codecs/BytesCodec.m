@@ -26,6 +26,18 @@ classdef BytesCodec < zarr.codecs.Codec
                 error("zarr:InvalidCodecs", ...
                     "The bytes codec cannot serialize %s data; use vlen-utf8/vlen-bytes.", info.zarrType);
             end
+            if info.zarrType == "structured" || info.zarrType == "fixed_length_utf32"
+                R = numel(shape);
+                if R >= 2
+                    A = permute(A, R:-1:1);  % emit C order
+                end
+                if info.zarrType == "structured"
+                    bytes = zarr.internal.encode_structured(A(:), info, obj.endian);
+                else
+                    bytes = zarr.internal.encode_fixed_utf32(A(:), info, obj.endian);
+                end
+                return
+            end
             R = numel(shape);
             if R >= 2
                 A = permute(A, R:-1:1);  % emit C order
@@ -59,6 +71,21 @@ classdef BytesCodec < zarr.codecs.Codec
                     "Chunk has %d bytes; expected %d for shape [%s] of %s.", ...
                     numel(bytes), expected, num2str(reshape(shape, 1, [])), info.zarrType);
             end
+
+            if info.zarrType == "structured" || info.zarrType == "fixed_length_utf32"
+                if info.zarrType == "structured"
+                    v = zarr.internal.decode_structured(bytes(:)', info, n, obj.endian);
+                else
+                    v = zarr.internal.decode_fixed_utf32(bytes(:)', info, n, obj.endian);
+                end
+                if R >= 2
+                    A = permute(reshape(v, flip(reshape(shape, 1, []))), R:-1:1);
+                else
+                    A = v;
+                end
+                return
+            end
+
             b = bytes(:);
             switch true
                 case info.zarrType == "bool"

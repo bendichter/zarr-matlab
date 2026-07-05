@@ -476,12 +476,17 @@ classdef Array < handle & matlab.mixin.indexing.RedefinesParen
             cls = char(obj.info.matlabClass);
             if obj.info.zarrType == "bool"
                 data = logical(data);
-            elseif obj.info.zarrType == "string"
+            elseif obj.info.zarrType == "string" || obj.info.zarrType == "fixed_length_utf32"
                 data = string(data);
             elseif obj.info.zarrType == "variable_length_bytes"
                 if ~iscell(data)
                     error("zarr:TypeMismatch", ...
                         "variable_length_bytes arrays take cell arrays of uint8 vectors.");
+                end
+            elseif obj.info.zarrType == "structured"
+                if ~isstruct(data)
+                    error("zarr:TypeMismatch", ...
+                        "structured arrays take a struct array with one field per record field.");
                 end
             elseif ~isa(data, cls)
                 data = cast(data, cls);
