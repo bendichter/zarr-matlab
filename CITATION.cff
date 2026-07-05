@@ -17,8 +17,8 @@ authors:
 license: MIT
 repository-code: "https://github.com/catalystneuro/zarr-matlab"
 url: "https://catalystneuro.github.io/zarr-matlab/"
-version: 0.3.0
-date-released: "2026-07-03"
+version: 0.3.1
+date-released: "2026-07-05"
 keywords:
   - Zarr
   - MATLAB
