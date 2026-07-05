@@ -7,6 +7,7 @@
 [![CI](https://github.com/catalystneuro/zarr-matlab/actions/workflows/ci.yml/badge.svg)](https://github.com/catalystneuro/zarr-matlab/actions/workflows/ci.yml)
 [![Docs](https://github.com/catalystneuro/zarr-matlab/actions/workflows/docs.yml/badge.svg)](https://catalystneuro.github.io/zarr-matlab/)
 [![GitHub release](https://img.shields.io/github/v/release/catalystneuro/zarr-matlab)](https://github.com/catalystneuro/zarr-matlab/releases)
+[![codecov](https://codecov.io/gh/catalystneuro/zarr-matlab/graph/badge.svg?token=6mz3LceJhv)](https://codecov.io/gh/catalystneuro/zarr-matlab)
 
 Read and write **Zarr v3** arrays natively in MATLAB — no Python required.
 
