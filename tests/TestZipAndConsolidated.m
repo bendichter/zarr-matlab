@@ -52,6 +52,46 @@ classdef TestZipAndConsolidated < matlab.unittest.TestCase
             tc.verifyError(@() rs.list(), "zarr:StoreError");  % closed
         end
 
+        function zipWriteFailureCleansUpPartialFile(tc)
+            p = fullfile(tc.work, "corrupt.zarr.zip");
+            ws = zarr.stores.ZipStore(p, Mode="w");
+            ws.set("a", uint8([1 2 3]));
+            ws.set(repmat('x', 1, 70000), uint8([4 5 6]));  % exceeds zip's 65535-byte entry-name limit
+            threw = false;
+            try
+                ws.close();
+            catch
+                threw = true;
+            end
+            tc.verifyTrue(threw, 'ws.close() should surface the underlying zip error');
+            tc.verifyFalse(isfile(p), 'failed close must not leave a partial/corrupt zip on disk');
+        end
+
+        function zipRelativePathResolvesAgainstCwd(tc)
+            % Java streams resolve relative paths against the JVM's user.dir
+            % (MATLAB's startup folder); the store must pin the path to
+            % MATLAB's current folder at construction so writes, reads, and
+            % the failure-cleanup delete all target the same file.
+            old = cd(tc.work);
+            restore = onCleanup(@() cd(old)); %#ok<NASGU>
+            ws = zarr.stores.ZipStore("rel.zarr.zip", Mode="w");
+            ws.set("a", uint8([1 2 3]));
+            ws.close();
+            tc.verifyTrue(isfile(fullfile(tc.work, "rel.zarr.zip")), ...
+                'zip must be written relative to MATLAB''s current folder');
+            rs = zarr.stores.ZipStore(fullfile(tc.work, "rel.zarr.zip"));
+            tc.verifyEqual(rs.get("a"), uint8([1 2 3]));
+            rs.close();
+        end
+
+        function zipDestructorWarnsOnFailedFinalize(tc)
+            p = fullfile(tc.work, "dtor.zarr.zip");
+            ws = zarr.stores.ZipStore(p, Mode="w");
+            ws.set(repmat('x', 1, 70000), uint8(1));  % close() will fail
+            tc.verifyWarning(@() delete(ws), "zarr:StoreError");
+            tc.verifyFalse(isfile(p));
+        end
+
         function consolidateAndReadBack(tc)
             root = fullfile(tc.work, "c.zarr");
             ls = zarr.stores.LocalStore(root);

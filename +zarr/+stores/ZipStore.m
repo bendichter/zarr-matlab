@@ -25,6 +25,13 @@ classdef ZipStore < zarr.stores.Store
                 path (1,1) string
                 opts.Mode (1,1) string {mustBeMember(opts.Mode, ["r", "w"])} = "r"
             end
+            % Absolutize: Java streams resolve relative paths against the
+            % JVM's user.dir (MATLAB's startup folder), while isfile/delete
+            % use MATLAB's current folder — both must point at the same file.
+            jf = java.io.File(char(path));
+            if ~jf.isAbsolute()
+                path = string(fullfile(pwd, char(path)));
+            end
             obj.path = path;
             obj.mode = opts.Mode;
             if obj.mode == "r"
@@ -123,24 +130,44 @@ classdef ZipStore < zarr.stores.Store
                 obj.zf.close();
                 return
             end
-            % Write all pending entries in one pass (deflate-compressed).
+            % Write all pending entries in one pass (deflate-compressed). On
+            % failure, close the streams and delete the partial file so a
+            % failed write never leaves a corrupt archive on disk.
             fos = java.io.FileOutputStream(char(obj.path));
             zos = java.util.zip.ZipOutputStream(fos);
-            keys = sort(string(obj.pending.keys())');
-            for i = 1:numel(keys)
-                zos.putNextEntry(java.util.zip.ZipEntry(char(keys(i))));
-                data = obj.pending(char(keys(i)));
-                if ~isempty(data)
-                    zos.write(typecast(uint8(data), 'int8'));
+            try
+                keys = sort(string(obj.pending.keys())');
+                for i = 1:numel(keys)
+                    zos.putNextEntry(java.util.zip.ZipEntry(char(keys(i))));
+                    data = obj.pending(char(keys(i)));
+                    if ~isempty(data)
+                        zos.write(typecast(uint8(data), 'int8'));
+                    end
+                    zos.closeEntry();
                 end
-                zos.closeEntry();
+                zos.close();
+            catch err
+                try %#ok<TRYNC> best-effort cleanup; must not mask the original error
+                    zos.close();
+                end
+                try %#ok<TRYNC> zos.close() can fail before closing the
+                    % underlying stream; an open handle would block the delete
+                    fos.close();
+                end
+                if isfile(obj.path)
+                    delete(obj.path);
+                end
+                rethrow(err);
             end
-            zos.close();
         end
 
         function delete(obj)
-            try %#ok<TRYNC> destructor must not throw
+            try % destructor must not throw, but the failure must be visible
                 obj.close();
+            catch err
+                warning("zarr:StoreError", ...
+                    "Failed to finalize ZipStore '%s' during destruction: %s", ...
+                    obj.path, err.message);
             end
         end
     end

@@ -98,6 +98,13 @@ classdef Array < handle & matlab.mixin.indexing.RedefinesParen
             end
 
             if R == 1
+                % Warn only when flattening interleaves, i.e. 2+ non-singleton
+                % dimensions; degenerate vectors like 1x1xN squeeze losslessly.
+                if sum(size(data) > 1) > 1
+                    warning("zarr:ShapeFlattened", ...
+                        "Data with %d dimensions is being flattened to a column vector for a rank-1 array write.", ...
+                        ndims(data));
+                end
                 count = numel(data);
                 data = data(:);
             else
