@@ -194,10 +194,21 @@ classdef TestArray < matlab.unittest.TestCase
             tc.verifyFalse(isfield(g.attrs, 'other'), 'new attrs are not applied');
         end
 
+        function recreateWithoutAttributesIsSilent(tc)
+            zarr.create_group(tc.store, Attributes=struct('subject', 'M-042'));
+            g = tc.verifyWarningFree(@() zarr.create_group(tc.store), ...
+                'idempotent ensure-exists must not warn when no attributes are supplied');
+            tc.verifyEqual(string(g.attrs.subject), "M-042");
+        end
+
         function rank1WriteWarnsOnNonVectorData(tc)
             z = zarr.create(tc.store, 6, "double", ChunkShape=6);
             tc.verifyWarningFree(@() z.write((1:6)'));
             tc.verifyWarning(@() z.write(reshape(1:6, [2 3])), "zarr:ShapeFlattened");
+            tc.verifyEqual(z.read(), (1:6)');
+            % 1x1xN has a single non-singleton dimension: flattening is a
+            % lossless squeeze, so it must stay silent.
+            tc.verifyWarningFree(@() z.write(reshape(1:6, [1 1 6])));
             tc.verifyEqual(z.read(), (1:6)');
         end
 

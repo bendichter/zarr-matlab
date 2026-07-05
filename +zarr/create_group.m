@@ -19,13 +19,16 @@ end
 
 [bytes, found] = store.get(key);
 if found
-    m = jsondecode(native2unicode(bytes, 'UTF-8'));
+    txt = native2unicode(bytes, 'UTF-8');
+    m = jsondecode(txt);
     if ~strcmp(m.node_type, 'group')
         error("zarr:NodeExists", "An array already exists at '%s'.", path);
     end
-    warning("zarr:NodeExists", ...
-        "A group already exists at '%s'; keeping its existing attributes.", path);
-    g = zarr.open(store, Path=path);
+    if ~isempty(fieldnames(opts.Attributes))
+        warning("zarr:NodeExists", ...
+            "A group already exists at '%s'; keeping its existing attributes.", path);
+    end
+    g = zarr.Group(store, path, zarr.metadata.GroupMetadata.fromJsonText(txt));
     return
 end
 

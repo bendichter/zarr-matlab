@@ -78,6 +78,23 @@ classdef TestMetadata < matlab.unittest.TestCase
             tc.verifyEqual(meta.fillValue, expected);
         end
 
+        function intFillValueToleratesNonIntegerTokens(tc)
+            % Lenient writers may spell an integer fill_value as 3.0, 1e16,
+            % or null; those files must stay openable (the value falls back
+            % to the jsondecode result) rather than erroring at parse.
+            base = ['{"zarr_format":3,"node_type":"array","shape":[2],' ...
+                '"data_type":"int64",' ...
+                '"chunk_grid":{"name":"regular","configuration":{"chunk_shape":[2]}},' ...
+                '"chunk_key_encoding":{"name":"default","configuration":{"separator":"/"}},' ...
+                '"fill_value":%s,' ...
+                '"codecs":[{"name":"bytes","configuration":{"endian":"little"}}]}'];
+            meta = zarr.metadata.ArrayMetadata.fromJsonText(sprintf(base, '3.0'));
+            tc.verifyEqual(meta.fillValue, int64(3));
+            meta = zarr.metadata.ArrayMetadata.fromJsonText(sprintf(base, '1e16'));
+            tc.verifyEqual(meta.fillValue, int64(1e16));
+            tc.verifyWarningFree(@() zarr.metadata.ArrayMetadata.fromJsonText(sprintf(base, 'null')));
+        end
+
         function negativeZeroFill(tc)
             meta = zarr.metadata.ArrayMetadata();
             meta.shape = 2;
